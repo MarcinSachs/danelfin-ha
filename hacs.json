@@ -1,0 +1,7 @@
+{
+  "name": "Danelfin AI Stock Scores",
+  "description": "Home Assistant integration that pulls Danelfin AI stock scores and recommendation ratings as sensors.",
+  "render_readme": true,
+  "filename": "danelfin.zip",
+  "homeassistant": "2024.1.0"
+}

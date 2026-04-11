@@ -2,7 +2,7 @@
 
 Architecture:
   1. Add Integration → Danelfin → click Submit (no ticker needed) → installs base entry.
-  2. Add entry → enter ticker → device with 9 sensors created.
+  2. Add entry → enter ticker + select market type → device with sensors created.
   3. Repeat step 2 for each additional ticker.
   4. Delete a ticker entry to stop tracking it.
 
@@ -16,13 +16,23 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow
 from homeassistant.data_entry_flow import FlowResult
-
-from .const import (
-    CONF_TICKER,
-    DOMAIN,
+from homeassistant.helpers.selector import (
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
 )
 
-_TICKER_RE = re.compile(r"^[A-Z0-9]{1,10}$")
+from .const import (
+    CONF_MARKET,
+    CONF_TICKER,
+    DOMAIN,
+    MARKET_ETF,
+    MARKET_EU,
+    MARKET_US,
+)
+
+# Allow letters, digits and dots (e.g. SAN.MC, BRK.B)
+_TICKER_RE = re.compile(r"^[A-Z0-9][A-Z0-9.]{0,11}$")
 
 
 def _validate_ticker(raw: str) -> str:
@@ -33,6 +43,18 @@ def _validate_ticker(raw: str) -> str:
     if not _TICKER_RE.match(ticker):
         raise vol.Invalid("ticker_invalid")
     return ticker
+
+
+_MARKET_SELECTOR = SelectSelector(
+    SelectSelectorConfig(
+        options=[
+            {"value": MARKET_US, "label": "US Stock"},
+            {"value": MARKET_EU, "label": "European Stock"},
+            {"value": MARKET_ETF, "label": "ETF"},
+        ],
+        mode=SelectSelectorMode.LIST,
+    )
+)
 
 
 class DanelfinConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -71,16 +93,25 @@ class DanelfinConfigFlow(ConfigFlow, domain=DOMAIN):
             except vol.Invalid as exc:
                 errors["ticker"] = str(exc)
             else:
-                await self.async_set_unique_id(ticker)
+                market = user_input.get(CONF_MARKET, MARKET_US)
+                unique_id = f"{market}_{ticker}"
+                await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
+
+                title = ticker if market == MARKET_US else f"{ticker} ({market.upper()})"
                 return self.async_create_entry(
-                    title=ticker,
-                    data={CONF_TICKER: ticker},
+                    title=title,
+                    data={CONF_TICKER: ticker, CONF_MARKET: market},
                 )
 
         return self.async_show_form(
             step_id="add_ticker",
-            data_schema=vol.Schema({vol.Required("ticker"): str}),
+            data_schema=vol.Schema(
+                {
+                    vol.Required("ticker"): str,
+                    vol.Required(CONF_MARKET, default=MARKET_US): _MARKET_SELECTOR,
+                }
+            ),
             errors=errors,
-            description_placeholders={"example": "NVDA"},
+            description_placeholders={"example": "NVDA / SAN.MC / BUG"},
         )

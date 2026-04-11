@@ -2,6 +2,8 @@
 
 Home Assistant custom integration that pulls **AI scores** from [Danelfin](https://danelfin.com) and exposes them as sensors.
 
+Supports **US stocks**, **European stocks**, and **ETFs**.
+
 ## Sensors created per ticker
 
 | Sensor | Description | Unit |
@@ -12,9 +14,10 @@ Home Assistant custom integration that pulls **AI scores** from [Danelfin](https
 | `sensor.danelfin_TICKER_sentiment_score` | Sentiment sub-score | – |
 | `sensor.danelfin_TICKER_risk_score` | Risk score | – |
 | `sensor.danelfin_TICKER_rating` | Rating: Strong Buy / Buy / Hold / Sell / Strong Sell | – |
-| `sensor.danelfin_TICKER_beat_market_probability` | Probability of outperforming S&P 500 in 3 months | % |
-| `sensor.danelfin_TICKER_probability_advantage` | Advantage over average stock probability | % |
-| `sensor.danelfin_TICKER_price` | Last price | USD |
+| `sensor.danelfin_TICKER_beat_market_probability` | Probability of outperforming the market / ETF universe in 3 months | % |
+| `sensor.danelfin_TICKER_probability_advantage` | Advantage over average stock/ETF probability | % |
+| `sensor.danelfin_TICKER_price` | Last price | currency (e.g. USD, EUR) |
+| `sensor.danelfin_TICKER_company_name` | Full company / ETF name | – |
 
 ## Installation
 
@@ -28,17 +31,39 @@ Home Assistant custom integration that pulls **AI scores** from [Danelfin](https
 2. Restart Home Assistant.
 
 ## Setup
+
 1. Go to **Settings → Devices & Services → Add Integration**.
-2. Search for *Danelfin*.
-3. Enter comma-separated ticker symbols (e.g. `NVDA, AAPL, MSFT`).
-4. Set the update interval in hours (default: 4). Danelfin updates scores once per trading day, so 4 h is sufficient.
+2. Search for *Danelfin* and click **Submit** (installs the base entry).
+3. Click **Add entry** for each ticker you want to track:
+   - Enter the **ticker symbol** (e.g. `NVDA`, `SAN.MC`, `BUG`).
+   - Select the **market type**: US Stock, European Stock, or ETF.
+4. Repeat step 3 for as many tickers as you need.
+5. To stop tracking a ticker, delete its entry.
+
+### Supported market types
+
+| Type | Example ticker | Danelfin URL |
+|---|---|---|
+| US Stock | `NVDA`, `AAPL` | `danelfin.com/stock/{ticker}` |
+| European Stock | `SAN.MC`, `ADS.DE` | `danelfin.com/stock/eu/{ticker}` |
+| ETF | `BUG`, `SPY` | `danelfin.com/etf/{ticker}` |
 
 ## How it works
 
-- Fetches `https://danelfin.com/stock/{TICKER}` using `aiohttp`.
-- Extracts the embedded Next.js `__NEXT_DATA__` JSON blob (all scores are server-rendered, no headless browser needed).
-- Falls back to HTML regex parsing if the JSON structure changes.
-- Creates a **fresh HTTP session per update cycle** — this clears cookies on each request, which resolves the session-based access blocks that Danelfin applies.
+- Fetches the Danelfin page for each ticker using `aiohttp`.
+- Danelfin uses Next.js App Router (RSC streaming) — there is no `__NEXT_DATA__` blob. All data is extracted from the server-rendered HTML using CSS class anchors and RSC payload regex parsing.
+- Creates a **fresh HTTP session per update cycle** to avoid session-based access blocks.
+- Update interval is fixed at 4 hours (Danelfin publishes scores once per trading day).
+
+## Testing without Home Assistant
+
+A standalone test script is included to validate parsing before deploying to HA:
+
+```bash
+python test_danelfin.py NVDA                     # US stock (default)
+python test_danelfin.py SAN.MC --market eu       # European stock
+python test_danelfin.py BUG --market etf         # ETF
+```
 
 ## Grafana integration
 

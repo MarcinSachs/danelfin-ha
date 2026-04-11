@@ -8,8 +8,21 @@ DEFAULT_SCAN_INTERVAL = 4
 # Request timeout (seconds)
 REQUEST_TIMEOUT = 30
 
-# Base URL
+# Base URL (kept for backwards compatibility)
 BASE_URL = "https://danelfin.com/stock/{ticker}"
+
+# Market / asset type identifiers
+CONF_MARKET = "market"
+MARKET_US = "us"
+MARKET_EU = "eu"
+MARKET_ETF = "etf"
+
+# URL templates per market / asset type
+BASE_URL_MAP: dict[str, str] = {
+    MARKET_US: "https://danelfin.com/stock/{ticker}",
+    MARKET_EU: "https://danelfin.com/stock/eu/{ticker}",
+    MARKET_ETF: "https://danelfin.com/etf/{ticker}",
+}
 
 # HTTP headers that mimic a regular browser visit
 # A realistic User-Agent reduces the chance of being blocked

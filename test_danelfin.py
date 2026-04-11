@@ -1,7 +1,11 @@
 """
 Test script for Danelfin data parsing.
-Usage: python test_danelfin.py [TICKER]
-Default ticker: NVDA
+Usage: python test_danelfin.py [TICKER] [--market us|eu|etf]
+Examples:
+  python test_danelfin.py NVDA
+  python test_danelfin.py SAN.MC --market eu
+  python test_danelfin.py BUG --market etf
+Default ticker: NVDA, default market: us
 """
 from __future__ import annotations
 
@@ -10,8 +14,37 @@ import sys
 
 import requests
 
-TICKER = sys.argv[1].upper() if len(sys.argv) > 1 else "NVDA"
-URL = f"https://danelfin.com/stock/{TICKER}"
+MARKET_US = "us"
+MARKET_EU = "eu"
+MARKET_ETF = "etf"
+
+BASE_URL_MAP = {
+    MARKET_US: "https://danelfin.com/stock/{ticker}",
+    MARKET_EU: "https://danelfin.com/stock/eu/{ticker}",
+    MARKET_ETF: "https://danelfin.com/etf/{ticker}",
+}
+
+# Parse CLI args
+args = sys.argv[1:]
+TICKER = "NVDA"
+MARKET = MARKET_US
+skip_next = False
+for i, arg in enumerate(args):
+    if skip_next:
+        skip_next = False
+        continue
+    if arg == "--market" and i + 1 < len(args):
+        MARKET = args[i + 1].lower()
+        skip_next = True
+    elif not arg.startswith("--"):
+        TICKER = arg.upper()
+
+if MARKET not in BASE_URL_MAP:
+    print(f"ERROR: unknown market '{MARKET}'. Use: us, eu, etf")
+    sys.exit(1)
+
+URL = BASE_URL_MAP[MARKET].format(ticker=TICKER)
+IS_ETF = (MARKET == MARKET_ETF)
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -37,7 +70,7 @@ def safe_int(v: str) -> int | None:
         return None
 
 
-def parse(html: str, ticker: str) -> dict:
+def parse(html: str, ticker: str, is_etf: bool = False) -> dict:
     result: dict = {"ticker": ticker}
 
     # ── Company name ─────────────────────────────────────────────────────────
@@ -84,7 +117,8 @@ def parse(html: str, ticker: str) -> dict:
     _BSLASH_QUOTE = chr(92) + chr(34)
     for bd_m in re.finditer(r'AiScoreBreakdown_scoreList', html):
         ul_end = html.find('</ul>', bd_m.start())
-        raw_chunk = html[bd_m.start(): ul_end] if ul_end > 0 else html[bd_m.start(): bd_m.start() + 15000]
+        raw_chunk = html[bd_m.start(
+        ): ul_end] if ul_end > 0 else html[bd_m.start(): bd_m.start() + 15000]
         chunk = raw_chunk.replace(_BSLASH_QUOTE, chr(34))
         if 'aria-label' not in chunk:
             continue
@@ -104,7 +138,8 @@ def parse(html: str, ticker: str) -> dict:
     # TickerPrice_price appears multiple times (CSS rules, RSC payload, etc.).
     # Iterate all occurrences and use the first window that has a "value" field.
     for pm in re.finditer(r'TickerPrice_price', html):
-        window = html[pm.start(): pm.start() + 400].replace(_BSLASH_QUOTE, chr(34))
+        window = html[pm.start(): pm.start() +
+                      400].replace(_BSLASH_QUOTE, chr(34))
         vm = re.search(r'"value"\s*:\s*([\d.]+)', window)
         if vm:
             result["price"] = safe_float(vm.group(1))
@@ -125,14 +160,21 @@ def parse(html: str, ticker: str) -> dict:
     )
     if m:
         result["probability_advantage"] = safe_float(m.group(1))
-
-    # ── Probability of beating the market (3M) ───────────────────────────────
-    # HTML structure (one row per article):
-    #   ...{TICKER} probability of beating the market (3M)</span>
-    #   <span class="AiAnalysisHintRow_content..."><span class="PercentageDisplay...">58.85%</span>
-    # Anchor to the closing </span> of the title to avoid greedy cross-row match.
+    else:
+        # Fallback: text pattern (ETFs use a different component/layout)
+        adv_target = r'the ETF universe' if is_etf else r'the market'
+        fb = re.search(
+            rf'{re.escape(ticker)}\s+probability advantage of beating\s+{adv_target}'
+            r'.*?\(3M\).*?([+-]\d+\.?\d*)\s*%',
+            html,
+            re.DOTALL | re.IGNORECASE,
+        )
+        if fb:
+            result["probability_advantage"] = safe_float(fb.group(1))
+    # ── Probability of beating the market / ETF universe (3M) ───────────────
+    beat_target = r'the ETF universe' if is_etf else r'the market'
     m = re.search(
-        rf'{re.escape(ticker)}\s+probability of beating the market[^(]*\(3M\)'
+        rf'{re.escape(ticker)}\s+probability of beating\s+{beat_target}[^(]*\(3M\)'
         r'</span>.*?<span[^>]*PercentageDisplay[^>]*>([\d.]+)\s*%',
         html,
         re.DOTALL | re.IGNORECASE,
@@ -156,11 +198,11 @@ def main() -> None:
         print("Unexpected status code.")
         sys.exit(1)
 
-    data = parse(r.text, TICKER)
+    data = parse(r.text, TICKER, is_etf=IS_ETF)
 
     print()
     print(f"{'─' * 40}")
-    print(f"  Danelfin data for: {TICKER}")
+    print(f"  Danelfin data for: {TICKER} [{MARKET.upper()}]")
     print(f"{'─' * 40}")
 
     LABELS = {
@@ -174,7 +216,7 @@ def main() -> None:
         "risk_score":           "Low Risk score",
         "price":                "Price",
         "currency":             "Currency",
-        "beat_market_prob":     "Beat market probability (%)",
+        "beat_market_prob":     "Beat market/ETF-universe prob (%)",
         "probability_advantage": "Probability advantage (%)",
     }
 

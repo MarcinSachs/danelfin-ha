@@ -19,9 +19,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
-    BASE_URL,
+    BASE_URL_MAP,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    MARKET_ETF,
+    MARKET_US,
     REQUEST_HEADERS,
     REQUEST_TIMEOUT,
     SENSOR_AI_SCORE,
@@ -78,7 +80,7 @@ def _safe_int(value: Any) -> int | None:
         return None
 
 
-def _parse_stock_data(ticker: str, html: str) -> dict[str, Any]:
+def _parse_stock_data(ticker: str, html: str, is_etf: bool = False) -> dict[str, Any]:
     """Extract Danelfin stock data from a raw HTML response.
 
     Danelfin uses Next.js App Router (RSC streaming) — data is embedded in
@@ -155,12 +157,23 @@ def _parse_stock_data(ticker: str, html: str) -> dict[str, Any]:
         re.DOTALL,
     )
     if m:
-        data[SENSOR_PROB_ADVANTAGE] = _safe_float(m.group(1))
-
-    # ── Probability of beating the market (3M) ────────────────────────────────
-    # Row: "{TICKER} probability of beating the market (3M)</span>...58.85%"
+        data[SENSOR_PROB_ADVANTAGE] = _safe_float(m.group(1))    else:
+        # Fallback: text pattern (ETFs use a different component/layout)
+        adv_target = r'the ETF universe' if is_etf else r'the market'
+        fb = re.search(
+            rf'{re.escape(ticker)}\s+probability advantage of beating\s+{adv_target}'
+            r'.*?\(3M\).*?([+-]\d+\.?\d*)\s*%',
+            html,
+            re.DOTALL | re.IGNORECASE,
+        )
+        if fb:
+            data[SENSOR_PROB_ADVANTAGE] = _safe_float(fb.group(1))
+    # ── Probability of beating the market / ETF universe (3M) ───────────────
+    # Stocks: "{TICKER} probability of beating the market (3M)"
+    # ETFs:   "{TICKER} probability of beating the ETF universe (3M)"
+    beat_target = r'the ETF universe' if is_etf else r'the market'
     m = re.search(
-        rf'{re.escape(ticker)}\s+probability of beating the market[^(]*\(3M\)'
+        rf'{re.escape(ticker)}\s+probability of beating\s+{beat_target}[^(]*\(3M\)'
         r'</span>.*?<span[^>]*PercentageDisplay[^>]*>([\d.]+)\s*%',
         html,
         re.DOTALL | re.IGNORECASE,
@@ -178,8 +191,9 @@ class DanelfinCoordinator(DataUpdateCoordinator):
     Uses a fresh aiohttp.ClientSession per cycle for a clean cookie jar.
     """
 
-    def __init__(self, hass: HomeAssistant, tickers: list[str], scan_hours: int) -> None:
+    def __init__(self, hass: HomeAssistant, tickers: list[str], scan_hours: int, market: str = MARKET_US) -> None:
         self.tickers: list[str] = [t.strip().upper() for t in tickers]
+        self.market: str = market
 
         super().__init__(
             hass,
@@ -209,7 +223,7 @@ class DanelfinCoordinator(DataUpdateCoordinator):
             headers=REQUEST_HEADERS,
         ) as session:
             for ticker in self.tickers:
-                url = BASE_URL.format(ticker=ticker)
+                url = BASE_URL_MAP.get(self.market, BASE_URL_MAP[MARKET_US]).format(ticker=ticker)
                 try:
                     async with session.get(url, allow_redirects=True) as resp:
                         if resp.status == 429:
@@ -236,7 +250,7 @@ class DanelfinCoordinator(DataUpdateCoordinator):
                     _LOGGER.error("Request error for %s: %s", ticker, exc)
                     continue
 
-                data = _parse_stock_data(ticker, html)
+                data = _parse_stock_data(ticker, html, is_etf=(self.market == MARKET_ETF))
                 if SENSOR_AI_SCORE not in data:
                     _LOGGER.warning(
                         "Danelfin: no AI Score found for %s – page structure may "

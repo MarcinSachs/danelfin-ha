@@ -3,9 +3,14 @@
     "step": {
       "user": {
         "title": "Danelfin",
-        "description": "Enter the ticker symbol you want to track (e.g. {example}). A device with 9 sensors will be created. To track more stocks, click Add entry again.",
+        "description": "Install the Danelfin integration. After installation, click Add entry for each ticker you want to track."
+      },
+      "add_ticker": {
+        "title": "Add ticker",
+        "description": "Enter the ticker symbol and select the market type. Examples: NVDA (US Stock), SAN.MC (European Stock), BUG (ETF).",
         "data": {
-          "ticker": "Ticker symbol"
+          "ticker": "Ticker symbol",
+          "market": "Market / Asset type"
         }
       }
     },
@@ -13,8 +18,8 @@
       "already_configured": "This ticker is already being tracked."
     },
     "error": {
-      "ticker_empty": "Please enter a ticker symbol (e.g. NVDA).",
-      "ticker_invalid": "Invalid ticker symbol. Use 1–10 uppercase letters or digits (e.g. NVDA, BRK.B is not supported — use BRKB)."
+      "ticker_empty": "Please enter a ticker symbol (e.g. NVDA, SAN.MC, BUG).",
+      "ticker_invalid": "Invalid ticker symbol. Use letters, digits and dots, e.g. NVDA, SAN.MC, BRK.B (max 12 characters)."
     }
   }
 }

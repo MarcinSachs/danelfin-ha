@@ -28,8 +28,7 @@ REQUEST_HEADERS = {
 }
 
 # Config entry keys
-CONF_TICKERS = "tickers"     # list of ticker strings stored in entry.options
-CONF_SCAN_INTERVAL = "scan_interval"
+CONF_TICKER = "ticker"     # single ticker symbol stored in entry.data
 
 # AI score rating thresholds (Danelfin convention)
 RATING_STRONG_BUY_MIN = 9
@@ -49,3 +48,4 @@ SENSOR_BEAT_MARKET_PROB = "beat_market_probability"
 SENSOR_PROB_ADVANTAGE = "probability_advantage"
 SENSOR_PRICE = "price"
 SENSOR_PRICE_CURRENCY = "price_currency"
+SENSOR_COMPANY_NAME = "company_name"

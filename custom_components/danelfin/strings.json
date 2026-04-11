@@ -2,47 +2,19 @@
   "config": {
     "step": {
       "user": {
-        "title": "Danelfin AI Stock Scores",
-        "description": "Click Submit to install the integration. Add stock tickers afterwards via the Configure button."
+        "title": "Danelfin",
+        "description": "Enter the ticker symbol you want to track (e.g. {example}). A device with 9 sensors will be created. To track more stocks, click Add entry again.",
+        "data": {
+          "ticker": "Ticker symbol"
+        }
       }
     },
     "abort": {
-      "already_configured": "Danelfin is already installed. Use the Configure button to add tickers."
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Danelfin – Manage stocks",
-        "menu_options": {
-          "add_ticker": "Add stock ticker",
-          "remove_ticker": "Remove stock ticker",
-          "change_interval": "Change update interval"
-        }
-      },
-      "add_ticker": {
-        "title": "Add stock ticker",
-        "description": "Enter a ticker symbol (e.g. {example}). Each ticker will appear as a separate device with 9 sensors.",
-        "data": {
-          "ticker": "Ticker symbol (e.g. NVDA)"
-        }
-      },
-      "remove_ticker": {
-        "title": "Remove stock ticker",
-        "data": {
-          "ticker": "Select ticker to remove"
-        }
-      },
-      "change_interval": {
-        "title": "Update interval",
-        "data": {
-          "scan_interval": "How often to refresh data (hours)"
-        }
-      }
+      "already_configured": "This ticker is already being tracked."
     },
     "error": {
-      "ticker": "Invalid ticker symbol. Use 1–5 uppercase letters.",
-      "already_tracked": "This ticker is already being tracked."
+      "ticker_empty": "Please enter a ticker symbol (e.g. NVDA).",
+      "ticker_invalid": "Invalid ticker symbol. Use 1–10 uppercase letters or digits (e.g. NVDA, BRK.B is not supported — use BRKB)."
     }
   }
 }

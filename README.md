@@ -1,6 +1,6 @@
 # danelfin-ha
 
-Home Assistant custom integration that pulls **AI stock scores** from [Danelfin](https://danelfin.com) and exposes them as sensors.
+Home Assistant custom integration that pulls **AI scores** from [Danelfin](https://danelfin.com) and exposes them as sensors.
 
 ## Sensors created per ticker
 

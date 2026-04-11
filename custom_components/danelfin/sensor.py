@@ -30,6 +30,7 @@ from .const import (
     DOMAIN,
     SENSOR_AI_SCORE,
     SENSOR_BEAT_MARKET_PROB,
+    SENSOR_COMPANY_NAME,
     SENSOR_FUNDAMENTAL,
     SENSOR_PRICE,
     SENSOR_PRICE_CURRENCY,
@@ -125,7 +126,12 @@ SENSOR_DESCRIPTIONS: tuple[DanelfinSensorEntityDescription, ...] = (
         icon="mdi:currency-usd",
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=2,
-        # currency comes from SENSOR_PRICE_CURRENCY attribute
+    ),
+    DanelfinSensorEntityDescription(
+        key=SENSOR_COMPANY_NAME,
+        data_key=SENSOR_COMPANY_NAME,
+        name="Company Name",
+        icon="mdi:office-building-outline",
     ),
 )
 
@@ -175,12 +181,18 @@ class DanelfinSensor(CoordinatorEntity[DanelfinCoordinator], SensorEntity):
 
     @property
     def available(self) -> bool:
-        """Unavailable when coordinator has no data for this ticker yet."""
+        """Available when coordinator has an entry for this ticker (even partial data)."""
         return (
-            super().available
+            self.coordinator.last_update_success
             and self.coordinator.data is not None
             and self._ticker in self.coordinator.data
         )
+
+    @property
+    def native_unit_of_measurement(self) -> str | None:
+        if self.entity_description.key == SENSOR_PRICE and self.available:
+            return self.coordinator.data[self._ticker].get(SENSOR_PRICE_CURRENCY, "USD")
+        return self.entity_description.native_unit_of_measurement
 
     @property
     def native_value(self) -> Any:
@@ -198,8 +210,12 @@ class DanelfinSensor(CoordinatorEntity[DanelfinCoordinator], SensorEntity):
         data = self.coordinator.data[self._ticker]
         attrs: dict[str, Any] = {"ticker": self._ticker}
 
+        company = data.get(SENSOR_COMPANY_NAME)
+        if company:
+            attrs["company"] = company
+
         if self.entity_description.key == SENSOR_PRICE:
-            attrs["currency"] = data.get(SENSOR_PRICE_CURRENCY, "USD")
+            attrs["currency"] = data.get(SENSOR_PRICE_CURRENCY, "USD")  # also visible as unit
 
         if self.entity_description.key == SENSOR_AI_SCORE:
             for key in (

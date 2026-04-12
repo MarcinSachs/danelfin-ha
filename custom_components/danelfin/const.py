@@ -43,6 +43,39 @@ REQUEST_HEADERS = {
 # Config entry keys
 CONF_TICKER = "ticker"     # single ticker symbol stored in entry.data
 
+# ── Recommendations ──────────────────────────────────────────────────────────
+# Keys stored in base entry options
+CONF_REC_EU = "rec_eu"    # track top 5 European stocks
+CONF_REC_US = "rec_us"    # track top 5 US stocks
+CONF_REC_ETF = "rec_etf"  # track top 5 ETFs
+
+TOP_N = 5  # number of top positions tracked per category
+
+# Ranking page URLs and link patterns
+RANKING_CATEGORIES: dict[str, dict] = {
+    CONF_REC_EU: {
+        "url": "https://danelfin.com/european-stocks",
+        "link_re": r'/stock/eu/([^"/?]+)',
+        "market": MARKET_EU,
+        "label": "Top EU Stocks",
+        "sensor_prefix": "top_eu",
+    },
+    CONF_REC_US: {
+        "url": "https://danelfin.com/us-stocks",
+        "link_re": r'"/stock/([A-Z0-9]{1,10})"',
+        "market": MARKET_US,
+        "label": "Top US Stocks",
+        "sensor_prefix": "top_us",
+    },
+    CONF_REC_ETF: {
+        "url": "https://danelfin.com/top-etfs",
+        "link_re": r'/etf/([A-Z0-9]{1,10})',
+        "market": MARKET_ETF,
+        "label": "Top ETFs",
+        "sensor_prefix": "top_etf",
+    },
+}
+
 # AI score rating thresholds (Danelfin convention)
 RATING_STRONG_BUY_MIN = 9
 RATING_BUY_MIN = 7

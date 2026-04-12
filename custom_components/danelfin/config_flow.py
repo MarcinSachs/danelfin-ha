@@ -1,10 +1,11 @@
 """Config flow for Danelfin integration.
 
 Architecture:
-  1. Add Integration → Danelfin → click Submit (no ticker needed) → installs base entry.
+  1. Add Integration → Danelfin → choose recommendation categories → installs base entry.
   2. Add entry → enter ticker + select market type → device with sensors created.
   3. Repeat step 2 for each additional ticker.
   4. Delete a ticker entry to stop tracking it.
+  5. Options flow on base entry → enable / disable recommendation categories.
 
 Update interval is fixed (Danelfin publishes once daily after US market close).
 """
@@ -14,7 +15,7 @@ import re
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigFlow
+from homeassistant.config_entries import ConfigFlow, OptionsFlow
 
 try:
     from homeassistant.config_entries import ConfigFlowResult  # HA 2024.8+
@@ -22,8 +23,13 @@ except ImportError:
     # type: ignore[assignment]
     from homeassistant.data_entry_flow import FlowResult as ConfigFlowResult
 
+from homeassistant.core import callback
+
 from .const import (
     CONF_MARKET,
+    CONF_REC_ETF,
+    CONF_REC_EU,
+    CONF_REC_US,
     CONF_TICKER,
     DOMAIN,
     MARKET_ETF,
@@ -45,13 +51,18 @@ def _validate_ticker(raw: str) -> str:
     return ticker
 
 
-def _build_add_ticker_schema() -> vol.Schema:
-    """Build the schema for the add_ticker step.
+def _rec_schema(defaults: dict[str, bool]) -> vol.Schema:
+    return vol.Schema(
+        {
+            vol.Optional(CONF_REC_EU, default=defaults.get(CONF_REC_EU, False)): bool,
+            vol.Optional(CONF_REC_US, default=defaults.get(CONF_REC_US, False)): bool,
+            vol.Optional(CONF_REC_ETF, default=defaults.get(CONF_REC_ETF, False)): bool,
+        }
+    )
 
-    Selector imports are deferred so that any version-compatibility issue
-    with the selector API does not prevent the config flow handler from
-    being registered (which would cause 'Invalid handler specified').
-    """
+
+def _build_add_ticker_schema() -> vol.Schema:
+    """Build the schema for the add_ticker step (deferred selector import)."""
     try:
         from homeassistant.helpers.selector import (  # noqa: PLC0415
             SelectSelector,
@@ -70,7 +81,6 @@ def _build_add_ticker_schema() -> vol.Schema:
             )
         )
     except Exception:  # noqa: BLE001
-        # Fallback: plain text field validated against allowed values.
         market_field = vol.In([MARKET_US, MARKET_EU, MARKET_ETF])
 
     return vol.Schema(
@@ -82,15 +92,19 @@ def _build_add_ticker_schema() -> vol.Schema:
 
 
 class DanelfinConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Config flow: empty install step + one entry per ticker."""
+    """Config flow: base entry (with recommendations) + one entry per ticker."""
 
     VERSION = 2
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: Any) -> "DanelfinOptionsFlow":
+        return DanelfinOptionsFlow(config_entry)
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Initial installation — no ticker needed."""
-        # If a base entry already exists, route directly to ticker step.
+        """Initial installation — choose recommendation categories."""
         if any(
             entry.data.get("is_base")
             for entry in self._async_current_entries()
@@ -101,9 +115,17 @@ class DanelfinConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(
                 title="Danelfin",
                 data={"is_base": True},
+                options={
+                    CONF_REC_EU: user_input.get(CONF_REC_EU, False),
+                    CONF_REC_US: user_input.get(CONF_REC_US, False),
+                    CONF_REC_ETF: user_input.get(CONF_REC_ETF, False),
+                },
             )
 
-        return self.async_show_form(step_id="user", data_schema=vol.Schema({}))
+        return self.async_show_form(
+            step_id="user",
+            data_schema=_rec_schema({}),
+        )
 
     async def async_step_add_ticker(
         self, user_input: dict[str, Any] | None = None
@@ -133,4 +155,28 @@ class DanelfinConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=_build_add_ticker_schema(),
             errors=errors,
             description_placeholders={"example": "NVDA / SAN.MC / BUG"},
+        )
+
+
+class DanelfinOptionsFlow(OptionsFlow):
+    """Options flow — enable / disable recommendation categories."""
+
+    def __init__(self, config_entry: Any) -> None:
+        self._entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if not self._entry.data.get("is_base"):
+            # Ticker entries have no options to configure.
+            return self.async_abort(reason="no_options")
+
+        current = self._entry.options
+
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=_rec_schema(current),
         )

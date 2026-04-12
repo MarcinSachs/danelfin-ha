@@ -27,7 +27,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
+    CONF_REC_ETF,
+    CONF_REC_EU,
+    CONF_REC_US,
     DOMAIN,
+    RANKING_CATEGORIES,
     SENSOR_AI_SCORE,
     SENSOR_BEAT_MARKET_PROB,
     SENSOR_COMPANY_NAME,
@@ -39,8 +43,10 @@ from .const import (
     SENSOR_RISK,
     SENSOR_SENTIMENT,
     SENSOR_TECHNICAL,
+    TOP_N,
 )
 from .coordinator import DanelfinCoordinator
+from .recommendations import DanelfinRecommendationsCoordinator
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -99,7 +105,8 @@ SENSOR_DESCRIPTIONS: tuple[DanelfinSensorEntityDescription, ...] = (
         name="Rating",
         icon="mdi:tag-outline",
         device_class=SensorDeviceClass.ENUM,
-        options=["Strong Buy", "Buy", "Hold", "Sell", "Strong Sell", "Unknown"],
+        options=["Strong Buy", "Buy", "Hold",
+                 "Sell", "Strong Sell", "Unknown"],
     ),
     DanelfinSensorEntityDescription(
         key=SENSOR_BEAT_MARKET_PROB,
@@ -141,9 +148,29 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up sensors for all tickers currently in the config entry."""
-    coordinator: DanelfinCoordinator = hass.data[DOMAIN][entry.entry_id]
+    """Set up sensors for a Danelfin config entry.
 
+    Handles both ticker entries (DanelfinCoordinator) and the base entry
+    (DanelfinRecommendationsCoordinator).
+    """
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+
+    if isinstance(coordinator, DanelfinRecommendationsCoordinator):
+        entities: list[SensorEntity] = []
+        for cat_key in coordinator.enabled_categories:
+            cfg = RANKING_CATEGORIES[cat_key]
+            prefix: str = cfg["sensor_prefix"]
+            label: str = cfg["label"]
+            for position in range(1, TOP_N + 1):
+                entities.append(
+                    DanelfinRecommendationSensor(
+                        coordinator, cat_key, prefix, position, label
+                    )
+                )
+        async_add_entities(entities)
+        return
+
+    # Ticker coordinator
     async_add_entities(
         DanelfinSensor(coordinator, ticker, description)
         for ticker in coordinator.tickers
@@ -215,7 +242,8 @@ class DanelfinSensor(CoordinatorEntity[DanelfinCoordinator], SensorEntity):
             attrs["company"] = company
 
         if self.entity_description.key == SENSOR_PRICE:
-            attrs["currency"] = data.get(SENSOR_PRICE_CURRENCY, "USD")  # also visible as unit
+            attrs["currency"] = data.get(
+                SENSOR_PRICE_CURRENCY, "USD")  # also visible as unit
 
         if self.entity_description.key == SENSOR_AI_SCORE:
             for key in (
@@ -231,3 +259,70 @@ class DanelfinSensor(CoordinatorEntity[DanelfinCoordinator], SensorEntity):
                     attrs[key] = data[key]
 
         return attrs
+
+
+class DanelfinRecommendationSensor(
+    CoordinatorEntity[DanelfinRecommendationsCoordinator], SensorEntity
+):
+    """A position-based recommendation sensor (e.g. Top EU Stock #1).
+
+    State  = ticker symbol (e.g. "SAN.MC", "NVDA")
+    Attributes = rank, company, ai_score, rating
+    """
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:star-outline"
+
+    def __init__(
+        self,
+        coordinator: DanelfinRecommendationsCoordinator,
+        category_key: str,
+        sensor_prefix: str,
+        position: int,
+        label: str,
+    ) -> None:
+        super().__init__(coordinator)
+        self._category_key = category_key
+        self._prefix = sensor_prefix
+        self._position = position  # 1-based
+
+        self._attr_unique_id = f"{DOMAIN}_rec_{sensor_prefix}_{position}"
+        self._attr_name = f"#{position}"
+
+        self._attr_device_info = DeviceInfo(
+            entry_type=DeviceEntryType.SERVICE,
+            identifiers={(DOMAIN, f"rec_{sensor_prefix}")},
+            name=f"Danelfin – {label}",
+            manufacturer="Danelfin",
+            model="AI Ranking",
+        )
+
+    def _entry_data(self) -> dict[str, Any] | None:
+        """Return the ranking entry for our position, or None."""
+        if not self.coordinator.data:
+            return None
+        return self.coordinator.data.get(self._category_key, {}).get(self._position)
+
+    @property
+    def available(self) -> bool:
+        return (
+            self.coordinator.last_update_success
+            and self._entry_data() is not None
+        )
+
+    @property
+    def native_value(self) -> str | None:
+        entry = self._entry_data()
+        return entry["ticker"] if entry else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        entry = self._entry_data()
+        if not entry:
+            return {}
+        return {
+            "rank": entry.get("rank"),
+            "company": entry.get("company", ""),
+            "ai_score": entry.get("ai_score"),
+            "rating": entry.get("rating", ""),
+        }

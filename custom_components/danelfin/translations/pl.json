@@ -1,1 +1,47 @@
-{"config":{"step":{"user":{"title":"Danelfin","description":"Kliknij Zatwierdz, aby zainstalowac integracje. Tickery dodasz pozniej przyciskiem Dodaj wpis."},"add_ticker":{"title":"Dodaj ticker","description":"Wpisz symbol tickera (np. {example}). Zostanie utworzone urzadzenie z 9 sensorami.","data":{"ticker":"Symbol tickera"},"data_description":{"ticker":"Symbol gieldowy NYSE / NASDAQ, np. NVDA, AAPL, MSFT"}}},"abort":{"already_configured":"Ten ticker jest juz sledzony."},"error":{"ticker_empty":"Podaj symbol tickera (np. NVDA).","ticker_invalid":"Nieprawidlowy symbol. Uzyj 1-10 wielkich liter lub cyfr."}}}
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Danelfin",
+                "description": "Wybierz, ktore listy Top 5 chcesz sledzic. Mozesz to zmienic pozniej w opcjach integracji. Pozostaw odznaczone, jesli chcesz tylko sledzic indywidualne tickery.",
+                "data": {
+                    "rec_eu": "Sledz Top 5 akcji europejskich",
+                    "rec_us": "Sledz Top 5 akcji US",
+                    "rec_etf": "Sledz Top 5 ETF"
+                }
+            },
+            "add_ticker": {
+                "title": "Dodaj ticker",
+                "description": "Wpisz symbol tickera i wybierz typ rynku (np. NVDA, SAN.MC, BUG).",
+                "data": {
+                    "ticker": "Symbol tickera",
+                    "market": "Typ rynku / aktywa"
+                },
+                "data_description": {
+                    "ticker": "Symbol gieldowy, np. NVDA (US), SAN.MC (EU), BUG (ETF)"
+                }
+            }
+        },
+        "abort": {
+            "already_configured": "Ten ticker jest juz sledzony.",
+            "no_options": "Brak opcji do konfiguracji dla tego wpisu."
+        },
+        "error": {
+            "ticker_empty": "Podaj symbol tickera (np. NVDA, SAN.MC, BUG).",
+            "ticker_invalid": "Nieprawidlowy symbol. Uzyj liter, cyfr i kropek, np. NVDA, SAN.MC, BRK.B (max 12 znakow)."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Rekomendacje Danelfin",
+                "description": "Wlacz lub wylacz listy Top 5. Zmiany sa widoczne bez restartu HA.",
+                "data": {
+                    "rec_eu": "Sledz Top 5 akcji europejskich",
+                    "rec_us": "Sledz Top 5 akcji US",
+                    "rec_etf": "Sledz Top 5 ETF"
+                }
+            }
+        }
+    }
+}

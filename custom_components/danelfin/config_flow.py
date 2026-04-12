@@ -15,12 +15,12 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow
-from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers.selector import (
-    SelectSelector,
-    SelectSelectorConfig,
-    SelectSelectorMode,
-)
+
+try:
+    from homeassistant.config_entries import ConfigFlowResult  # HA 2024.8+
+except ImportError:
+    # type: ignore[assignment]
+    from homeassistant.data_entry_flow import FlowResult as ConfigFlowResult
 
 from .const import (
     CONF_MARKET,
@@ -45,16 +45,40 @@ def _validate_ticker(raw: str) -> str:
     return ticker
 
 
-_MARKET_SELECTOR = SelectSelector(
-    SelectSelectorConfig(
-        options=[
-            {"value": MARKET_US, "label": "US Stock"},
-            {"value": MARKET_EU, "label": "European Stock"},
-            {"value": MARKET_ETF, "label": "ETF"},
-        ],
-        mode=SelectSelectorMode.LIST,
+def _build_add_ticker_schema() -> vol.Schema:
+    """Build the schema for the add_ticker step.
+
+    Selector imports are deferred so that any version-compatibility issue
+    with the selector API does not prevent the config flow handler from
+    being registered (which would cause 'Invalid handler specified').
+    """
+    try:
+        from homeassistant.helpers.selector import (  # noqa: PLC0415
+            SelectSelector,
+            SelectSelectorConfig,
+            SelectSelectorMode,
+        )
+
+        market_field: Any = SelectSelector(
+            SelectSelectorConfig(
+                options=[
+                    {"value": MARKET_US, "label": "US Stock"},
+                    {"value": MARKET_EU, "label": "European Stock"},
+                    {"value": MARKET_ETF, "label": "ETF"},
+                ],
+                mode=SelectSelectorMode.LIST,
+            )
+        )
+    except Exception:  # noqa: BLE001
+        # Fallback: plain text field validated against allowed values.
+        market_field = vol.In([MARKET_US, MARKET_EU, MARKET_ETF])
+
+    return vol.Schema(
+        {
+            vol.Required("ticker"): str,
+            vol.Optional(CONF_MARKET, default=MARKET_US): market_field,
+        }
     )
-)
 
 
 class DanelfinConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -64,7 +88,7 @@ class DanelfinConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Initial installation — no ticker needed."""
         # If a base entry already exists, route directly to ticker step.
         if any(
@@ -83,7 +107,7 @@ class DanelfinConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_add_ticker(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Add one ticker — shown for every subsequent Add entry click."""
         errors: dict[str, str] = {}
 
@@ -106,12 +130,7 @@ class DanelfinConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="add_ticker",
-            data_schema=vol.Schema(
-                {
-                    vol.Required("ticker"): str,
-                    vol.Required(CONF_MARKET, default=MARKET_US): _MARKET_SELECTOR,
-                }
-            ),
+            data_schema=_build_add_ticker_schema(),
             errors=errors,
             description_placeholders={"example": "NVDA / SAN.MC / BUG"},
         )

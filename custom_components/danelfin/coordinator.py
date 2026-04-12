@@ -109,7 +109,8 @@ def _parse_stock_data(ticker: str, html: str, is_etf: bool = False) -> dict[str,
                 data[SENSOR_RATING] = _derive_rating(ai_score)
 
     # If rendered HTML has the rating text directly, prefer that over derived.
-    m = re.search(r'class="[^"]*AiScoreCard_actionText[^"]*"[^>]*>([^<]+)<', html)
+    m = re.search(
+        r'class="[^"]*AiScoreCard_actionText[^"]*"[^>]*>([^<]+)<', html)
     if m:
         data[SENSOR_RATING] = m.group(1).strip()
 
@@ -120,7 +121,8 @@ def _parse_stock_data(ticker: str, html: str, is_etf: bool = False) -> dict[str,
     # regardless of which occurrence we land on.
     for bd_m in re.finditer(r'AiScoreBreakdown_scoreList', html):
         ul_end = html.find('</ul>', bd_m.start())
-        raw_chunk = html[bd_m.start(): ul_end] if ul_end > 0 else html[bd_m.start(): bd_m.start() + 15000]
+        raw_chunk = html[bd_m.start(
+        ): ul_end] if ul_end > 0 else html[bd_m.start(): bd_m.start() + 15000]
         chunk = raw_chunk.replace(_BSLASH_QUOTE, chr(34))
         if 'aria-label' not in chunk:
             continue
@@ -140,7 +142,8 @@ def _parse_stock_data(ticker: str, html: str, is_etf: bool = False) -> dict[str,
     # TickerPrice_price appears multiple times (CSS rules, RSC payload, etc.).
     # Iterate all occurrences and use the first window that has a "value" field.
     for pm in re.finditer(r'TickerPrice_price', html):
-        window = html[pm.start(): pm.start() + 400].replace(_BSLASH_QUOTE, chr(34))
+        window = html[pm.start(): pm.start() +
+                      400].replace(_BSLASH_QUOTE, chr(34))
         vm = re.search(r'"value"\s*:\s*([\d.]+)', window)
         if vm:
             data[SENSOR_PRICE] = _safe_float(vm.group(1))
@@ -157,7 +160,8 @@ def _parse_stock_data(ticker: str, html: str, is_etf: bool = False) -> dict[str,
         re.DOTALL,
     )
     if m:
-        data[SENSOR_PROB_ADVANTAGE] = _safe_float(m.group(1))    else:
+        data[SENSOR_PROB_ADVANTAGE] = _safe_float(m.group(1))
+    else:
         # Fallback: text pattern (ETFs use a different component/layout)
         adv_target = r'the ETF universe' if is_etf else r'the market'
         fb = re.search(
@@ -223,7 +227,8 @@ class DanelfinCoordinator(DataUpdateCoordinator):
             headers=REQUEST_HEADERS,
         ) as session:
             for ticker in self.tickers:
-                url = BASE_URL_MAP.get(self.market, BASE_URL_MAP[MARKET_US]).format(ticker=ticker)
+                url = BASE_URL_MAP.get(
+                    self.market, BASE_URL_MAP[MARKET_US]).format(ticker=ticker)
                 try:
                     async with session.get(url, allow_redirects=True) as resp:
                         if resp.status == 429:
@@ -250,7 +255,8 @@ class DanelfinCoordinator(DataUpdateCoordinator):
                     _LOGGER.error("Request error for %s: %s", ticker, exc)
                     continue
 
-                data = _parse_stock_data(ticker, html, is_etf=(self.market == MARKET_ETF))
+                data = _parse_stock_data(
+                    ticker, html, is_etf=(self.market == MARKET_ETF))
                 if SENSOR_AI_SCORE not in data:
                     _LOGGER.warning(
                         "Danelfin: no AI Score found for %s – page structure may "

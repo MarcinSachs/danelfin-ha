@@ -1,16 +1,16 @@
 {
   "domain": "danelfin",
   "name": "Danelfin AI Stock Scores",
-  "version": "1.0.0",
-  "documentation": "https://github.com/MarcinSachs/danelfin-ha",
-  "issue_tracker": "https://github.com/MarcinSachs/danelfin-ha/issues",
+  "codeowners": [
+    "@MarcinSachs"
+  ],
   "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/MarcinSachs/danelfin-ha",
   "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/MarcinSachs/danelfin-ha/issues",
   "requirements": [
     "aiohttp"
   ],
-  "dependencies": [],
-  "codeowners": [
-    "@MarcinSachs"
-  ]
+  "version": "1.0.0"
 }

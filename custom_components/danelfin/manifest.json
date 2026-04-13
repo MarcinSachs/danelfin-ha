@@ -7,7 +7,11 @@
   "config_flow": true,
   "entry_unload_supported": true,
   "iot_class": "cloud_polling",
-  "requirements": ["aiohttp", "async_timeout"],
+  "requirements": [
+    "aiohttp"
+  ],
   "dependencies": [],
-  "codeowners": ["@MarcinSachs"]
+  "codeowners": [
+    "@MarcinSachs"
+  ]
 }

@@ -48,6 +48,9 @@
                     "scan_interval": "Interwal odswiezania (godziny)"
                 }
             }
+        },
+        "abort": {
+            "no_options": "Brak opcji do konfiguracji dla tego wpisu."
         }
     }
 }

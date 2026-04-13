@@ -48,6 +48,9 @@
           "scan_interval": "Update interval (hours)"
         }
       }
+    },
+    "abort": {
+      "no_options": "No configurable options for this entry."
     }
   },
   "selector": {

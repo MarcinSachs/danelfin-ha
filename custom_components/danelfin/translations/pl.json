@@ -14,7 +14,7 @@
             },
             "add_ticker": {
                 "title": "Dodaj ticker",
-                "description": "Wpisz symbol tickera i wybierz typ rynku (np. NVDA, SAN.MC, BUG).",
+                "description": "Wpisz symbol tickera i wybierz typ rynku. Uzyj symboli US dla rynku US oraz formatu RIC dla rynku europejskiego, np. SAN.MC, ADS.DE, VOW.DE.",
                 "data": {
                     "ticker": "Symbol tickera",
                     "market": "Typ rynku / aktywa"

@@ -14,7 +14,7 @@
       },
       "add_ticker": {
         "title": "Add ticker",
-        "description": "Enter the ticker symbol and select the market type. Examples: NVDA (US Stock), SAN.MC (European Stock), BUG (ETF).",
+        "description": "Enter the ticker symbol and select the market type. Use US symbols for US stocks and RIC-style symbols for European stocks, e.g. SAN.MC, ADS.DE, or VOW.DE. Examples: NVDA (US Stock), SAN.MC (European Stock), BUG (ETF).",
         "data": {
           "ticker": "Ticker symbol",
           "market": "Market / Asset type"

@@ -105,6 +105,7 @@ def _build_add_ticker_schema() -> vol.Schema:
             SelectSelectorMode,
         )
 
+        selector_mode = getattr(SelectSelectorMode, "DROPDOWN", SelectSelectorMode.LIST)
         market_field: Any = SelectSelector(
             SelectSelectorConfig(
                 options=[
@@ -112,7 +113,7 @@ def _build_add_ticker_schema() -> vol.Schema:
                     {"value": MARKET_EU, "label": "European Stock"},
                     {"value": MARKET_ETF, "label": "ETF"},
                 ],
-                mode=SelectSelectorMode.LIST,
+                mode=selector_mode,
             )
         )
     except Exception:  # noqa: BLE001

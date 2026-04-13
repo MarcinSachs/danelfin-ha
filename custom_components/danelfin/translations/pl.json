@@ -5,6 +5,8 @@
                 "title": "Danelfin",
                 "description": "Wybierz, ktore listy Top 5 chcesz sledzic. Mozesz to zmienic pozniej w opcjach integracji. Pozostaw odznaczone, jesli chcesz tylko sledzic indywidualne tickery.",
                 "data": {
+                    "api_key": "Klucz API Danelfin",
+                    "scan_interval": "Interwal odswiezania (godziny)",
                     "rec_eu": "Sledz Top 5 akcji europejskich",
                     "rec_us": "Sledz Top 5 akcji US",
                     "rec_etf": "Sledz Top 5 ETF"
@@ -12,7 +14,7 @@
             },
             "add_ticker": {
                 "title": "Dodaj ticker",
-                "description": "Wpisz symbol tickera i wybierz typ rynku (np. NVDA, SAN.MC, BUG).",
+                "description": "Wpisz symbol tickera i wybierz typ rynku. Uzyj symboli US dla rynku US oraz formatu RIC dla rynku europejskiego, np. SAN.MC, ADS.DE, VOW.DE.",
                 "data": {
                     "ticker": "Symbol tickera",
                     "market": "Typ rynku / aktywa"
@@ -27,6 +29,9 @@
             "no_options": "Brak opcji do konfiguracji dla tego wpisu."
         },
         "error": {
+            "api_key_required": "Klucz API jest wymagany.",
+            "invalid_api_key": "Nieprawidlowy klucz API. Sprawdz swoj klucz Danelfin.",
+            "cannot_connect": "Brak polaczenia z API Danelfin. Sprawdz siec i klucz API.",
             "ticker_empty": "Podaj symbol tickera (np. NVDA, SAN.MC, BUG).",
             "ticker_invalid": "Nieprawidlowy symbol. Uzyj liter, cyfr i kropek, np. NVDA, SAN.MC, BRK.B (max 12 znakow)."
         }
@@ -35,11 +40,12 @@
         "step": {
             "init": {
                 "title": "Rekomendacje Danelfin",
-                "description": "Wlacz lub wylacz listy Top 5. Zmiany sa widoczne bez restartu HA.",
+                "description": "Wlacz lub wylacz listy Top 5 i ustaw interwal odswiezania. Zmiany sa widoczne bez restartu HA.",
                 "data": {
                     "rec_eu": "Sledz Top 5 akcji europejskich",
                     "rec_us": "Sledz Top 5 akcji US",
-                    "rec_etf": "Sledz Top 5 ETF"
+                    "rec_etf": "Sledz Top 5 ETF",
+                    "scan_interval": "Interwal odswiezania (godziny)"
                 }
             }
         }

@@ -5,6 +5,8 @@
                 "title": "Danelfin",
                 "description": "Select which Top 5 recommendation lists to track. You can change this at any time via the integration options. Leave all unchecked to only track individual tickers.",
                 "data": {
+                    "api_key": "Danelfin API key",
+                    "scan_interval": "Update interval (hours)",
                     "rec_eu": "Track Top 5 European Stocks",
                     "rec_us": "Track Top 5 US Stocks",
                     "rec_etf": "Track Top 5 ETFs"
@@ -12,7 +14,7 @@
             },
             "add_ticker": {
                 "title": "Add ticker",
-                "description": "Enter a ticker symbol and select the market type (e.g. NVDA, SAN.MC, BUG).",
+                "description": "Enter a ticker symbol and select the market type. Use US symbols for US stocks and RIC-style symbols for European stocks, e.g. SAN.MC, ADS.DE, or VOW.DE.",
                 "data": {
                     "ticker": "Ticker symbol",
                     "market": "Market / Asset type"
@@ -23,10 +25,12 @@
             }
         },
         "abort": {
-            "already_configured": "This ticker is already being tracked.",
-            "no_options": "No configurable options for this entry."
+            "already_configured": "This ticker is already being tracked."
         },
         "error": {
+            "api_key_required": "API key is required.",
+            "invalid_api_key": "Invalid API key. Please check your Danelfin API key.",
+            "cannot_connect": "Unable to connect to the Danelfin API. Check your network connection and API key.",
             "ticker_empty": "Please enter a ticker symbol (e.g. NVDA, SAN.MC, BUG).",
             "ticker_invalid": "Invalid ticker symbol. Use letters, digits and dots, e.g. NVDA, SAN.MC, BRK.B (max 12 characters)."
         }
@@ -35,13 +39,17 @@
         "step": {
             "init": {
                 "title": "Danelfin Recommendations",
-                "description": "Enable or disable the Top 5 recommendation sensors. Changes take effect immediately without restarting HA.",
+                "description": "Enable or disable the Top 5 recommendation sensors and adjust the update interval. Changes take effect immediately without restarting HA.",
                 "data": {
                     "rec_eu": "Track Top 5 European Stocks",
                     "rec_us": "Track Top 5 US Stocks",
-                    "rec_etf": "Track Top 5 ETFs"
+                    "rec_etf": "Track Top 5 ETFs",
+                    "scan_interval": "Update interval (hours)"
                 }
             }
+        },
+        "abort": {
+            "no_options": "No configurable options for this entry."
         }
     }
 }

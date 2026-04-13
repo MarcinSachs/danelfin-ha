@@ -19,6 +19,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant
@@ -45,7 +46,7 @@ from .const import (
     SENSOR_TECHNICAL,
     TOP_N,
 )
-from .coordinator import DanelfinCoordinator
+from .coordinator import DanelfinApiHealthCoordinator, DanelfinCoordinator
 from .recommendations import DanelfinRecommendationsCoordinator
 
 
@@ -54,6 +55,7 @@ class DanelfinSensorEntityDescription(SensorEntityDescription):
     """Extended description that carries the data key used by the coordinator."""
 
     data_key: str
+    entity_category: EntityCategory | None = None
 
 
 # One description per sensor type; each ticker gets its own instance of each
@@ -62,7 +64,7 @@ SENSOR_DESCRIPTIONS: tuple[DanelfinSensorEntityDescription, ...] = (
         key=SENSOR_AI_SCORE,
         data_key=SENSOR_AI_SCORE,
         name="AI Score",
-        icon="mdi:robot-outline",
+        icon="mdi:trending-up",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=None,
         suggested_display_precision=0,
@@ -132,6 +134,7 @@ SENSOR_DESCRIPTIONS: tuple[DanelfinSensorEntityDescription, ...] = (
         name="Price",
         icon="mdi:currency-usd",
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
         suggested_display_precision=2,
     ),
     DanelfinSensorEntityDescription(
@@ -153,27 +156,33 @@ async def async_setup_entry(
     Handles both ticker entries (DanelfinCoordinator) and the base entry
     (DanelfinRecommendationsCoordinator).
     """
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    entities: list[SensorEntity] = []
+    entry_coordinator = hass.data[DOMAIN][entry.entry_id]
 
-    if isinstance(coordinator, DanelfinRecommendationsCoordinator):
-        entities: list[SensorEntity] = []
-        for cat_key in coordinator.enabled_categories:
-            cfg = RANKING_CATEGORIES[cat_key]
-            prefix: str = cfg["sensor_prefix"]
-            label: str = cfg["label"]
-            for position in range(1, TOP_N + 1):
-                entities.append(
-                    DanelfinRecommendationSensor(
-                        coordinator, cat_key, prefix, position, label
+    if entry.data.get("is_base"):
+        health_coordinator = entry_coordinator
+        entities.append(DanelfinApiHealthSensor(health_coordinator))
+
+        rec_coordinator = hass.data[DOMAIN].get(f"{entry.entry_id}_rec")
+        if isinstance(rec_coordinator, DanelfinRecommendationsCoordinator):
+            for cat_key in rec_coordinator.enabled_categories:
+                cfg = RANKING_CATEGORIES[cat_key]
+                prefix: str = cfg["sensor_prefix"]
+                label: str = cfg["label"]
+                for position in range(1, TOP_N + 1):
+                    entities.append(
+                        DanelfinRecommendationSensor(
+                            rec_coordinator, cat_key, prefix, position, label
+                        )
                     )
-                )
+
         async_add_entities(entities)
         return
 
     # Ticker coordinator
     async_add_entities(
-        DanelfinSensor(coordinator, ticker, description)
-        for ticker in coordinator.tickers
+        DanelfinSensor(entry_coordinator, ticker, description)
+        for ticker in entry_coordinator.tickers
         for description in SENSOR_DESCRIPTIONS
     )
 
@@ -258,7 +267,53 @@ class DanelfinSensor(CoordinatorEntity[DanelfinCoordinator], SensorEntity):
                 if key in data:
                     attrs[key] = data[key]
 
+            if "last_updated" in data:
+                attrs["last_updated"] = data["last_updated"]
+            if "price" in data:
+                attrs["price"] = data["price"]
+            if "market" in data:
+                attrs["market"] = data["market"]
+
         return attrs
+
+
+class DanelfinApiHealthSensor(
+    CoordinatorEntity[DanelfinApiHealthCoordinator], SensorEntity
+):
+    """API connectivity status sensor for the base entry."""
+
+    _attr_has_entity_name = True
+    _attr_unique_id = f"{DOMAIN}_api_connectivity_status"
+    _attr_icon = "mdi:cloud-check-outline"
+
+    def __init__(self, coordinator: DanelfinApiHealthCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_name = "API Connectivity"
+        self._attr_device_info = DeviceInfo(
+            entry_type=DeviceEntryType.SERVICE,
+            identifiers={(DOMAIN, "api_health")},
+            name="Danelfin API Health",
+            manufacturer="Danelfin",
+            model="API Connectivity",
+        )
+
+    @property
+    def available(self) -> bool:
+        return self.coordinator.data is not None
+
+    @property
+    def native_value(self) -> str | None:
+        return self.coordinator.data.get("status") if self.coordinator.data else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        if not self.coordinator.data:
+            return {}
+        return {
+            "healthy": self.coordinator.data.get("healthy"),
+            "last_checked": self.coordinator.data.get("last_checked"),
+            "error": self.coordinator.data.get("error", ""),
+        }
 
 
 class DanelfinRecommendationSensor(

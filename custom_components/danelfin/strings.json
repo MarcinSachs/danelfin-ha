@@ -2,20 +2,26 @@
   "config": {
     "step": {
       "user": {
-        "title": "Danelfin",
-        "description": "Select which top-5 recommendation lists to track. You can change these at any time via the integration options. Leave all unchecked to skip recommendations and only track individual tickers.",
+        "title": "Danelfin Configuration",
+        "description": "Enter your API key and set the update interval. You can also enable global tracking for Top 5 recommendations.",
         "data": {
+          "api_key": "Danelfin API Key",
+          "scan_interval": "Update interval (hours)",
           "rec_eu": "Track Top 5 European Stocks",
           "rec_us": "Track Top 5 US Stocks",
           "rec_etf": "Track Top 5 ETFs"
         }
       },
       "add_ticker": {
-        "title": "Add ticker",
-        "description": "Enter the ticker symbol and select the market type. Examples: NVDA (US Stock), SAN.MC (European Stock), BUG (ETF).",
+        "title": "Add Ticker to Monitor",
+        "description": "Provide the stock or ETF symbol. Ensure the format matches the selected market. Examples: NVDA (US), SAN.MC (Europe), SPY (ETF).",
         "data": {
-          "ticker": "Ticker symbol",
-          "market": "Market / Asset type"
+          "ticker": "Ticker Symbol",
+          "market": "Market / Asset Type"
+        },
+        "data_description": {
+          "ticker": "e.g., AAPL (US), SAP.DE (Europe), or SPY (ETF)",
+          "market": "Select 'Europe' only for stocks using RIC format (e.g. .DE, .PA)"
         }
       }
     },
@@ -23,20 +29,32 @@
       "already_configured": "This ticker is already being tracked."
     },
     "error": {
-      "ticker_empty": "Please enter a ticker symbol (e.g. NVDA, SAN.MC, BUG).",
-      "ticker_invalid": "Invalid ticker symbol. Use letters, digits and dots, e.g. NVDA, SAN.MC, BRK.B (max 12 characters)."
+      "api_key_required": "API key is required.",
+      "invalid_api_key": "Invalid API key. Please verify it on danelfin.com",
+      "cannot_connect": "Failed to connect to Danelfin API. Check your internet or API key.",
+      "ticker_empty": "Ticker symbol cannot be empty.",
+      "ticker_invalid": "Invalid format. Use symbols like NVDA, SAN.MC or BUG (max 12 chars)."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Danelfin Recommendations",
-        "description": "Enable or disable the top-5 recommendation sensors. Changes take effect immediately after saving.",
+        "title": "Danelfin Options",
+        "description": "Adjust tracking preferences and update frequency. Note: Frequent updates may consume your API quota faster.",
         "data": {
           "rec_eu": "Track Top 5 European Stocks",
           "rec_us": "Track Top 5 US Stocks",
-          "rec_etf": "Track Top 5 ETFs"
+          "rec_etf": "Track Top 5 ETFs",
+          "scan_interval": "Update interval (hours)"
         }
+      }
+    }
+  },
+  "selector": {
+    "market": {
+      "options": {
+        "us": "USA (Stocks & ETFs)",
+        "europe": "Europe (RIC format)"
       }
     }
   }

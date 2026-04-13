@@ -1,1 +1,8 @@
-plandzialania.txt
+#pyc
+__pycache__/*.pyc
+__pycache__/*/*.pyc
+*.pyc
+*.pyo
+
+#env
+*.env

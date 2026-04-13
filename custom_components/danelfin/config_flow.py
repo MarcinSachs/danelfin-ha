@@ -23,14 +23,20 @@ except ImportError:
     # type: ignore[assignment]
     from homeassistant.data_entry_flow import FlowResult as ConfigFlowResult
 
+import aiohttp
+
 from homeassistant.core import callback
 
+from .api import DanelfinApiClient, DanelfinApiError, DanelfinAuthError
 from .const import (
+    CONF_API_KEY,
     CONF_MARKET,
     CONF_REC_ETF,
     CONF_REC_EU,
     CONF_REC_US,
+    CONF_SCAN_INTERVAL,
     CONF_TICKER,
+    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MARKET_ETF,
     MARKET_EU,
@@ -61,6 +67,35 @@ def _rec_schema(defaults: dict[str, bool]) -> vol.Schema:
     )
 
 
+def _base_schema(defaults: dict[str, Any]) -> vol.Schema:
+    return vol.Schema(
+        {
+            vol.Required(CONF_API_KEY, default=defaults.get(CONF_API_KEY, "")): str,
+            vol.Optional(
+                CONF_SCAN_INTERVAL,
+                default=defaults.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=168)),
+            vol.Optional(CONF_REC_EU, default=defaults.get(CONF_REC_EU, False)): bool,
+            vol.Optional(CONF_REC_US, default=defaults.get(CONF_REC_US, False)): bool,
+            vol.Optional(CONF_REC_ETF, default=defaults.get(CONF_REC_ETF, False)): bool,
+        }
+    )
+
+
+def _options_schema(defaults: dict[str, Any]) -> vol.Schema:
+    return vol.Schema(
+        {
+            vol.Optional(CONF_REC_EU, default=defaults.get(CONF_REC_EU, False)): bool,
+            vol.Optional(CONF_REC_US, default=defaults.get(CONF_REC_US, False)): bool,
+            vol.Optional(CONF_REC_ETF, default=defaults.get(CONF_REC_ETF, False)): bool,
+            vol.Optional(
+                CONF_SCAN_INTERVAL,
+                default=defaults.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+            ): vol.All(vol.Coerce(int), vol.Range(min=1, max=168)),
+        }
+    )
+
+
 def _build_add_ticker_schema() -> vol.Schema:
     """Build the schema for the add_ticker step (deferred selector import)."""
     try:
@@ -70,6 +105,7 @@ def _build_add_ticker_schema() -> vol.Schema:
             SelectSelectorMode,
         )
 
+        selector_mode = getattr(SelectSelectorMode, "DROPDOWN", SelectSelectorMode.LIST)
         market_field: Any = SelectSelector(
             SelectSelectorConfig(
                 options=[
@@ -77,7 +113,7 @@ def _build_add_ticker_schema() -> vol.Schema:
                     {"value": MARKET_EU, "label": "European Stock"},
                     {"value": MARKET_ETF, "label": "ETF"},
                 ],
-                mode=SelectSelectorMode.LIST,
+                mode=selector_mode,
             )
         )
     except Exception:  # noqa: BLE001
@@ -111,21 +147,44 @@ class DanelfinConfigFlow(ConfigFlow, domain=DOMAIN):
         ):
             return await self.async_step_add_ticker()
 
+        errors: dict[str, str] = {}
         if user_input is not None:
-            return self.async_create_entry(
-                title="Danelfin",
-                data={"is_base": True},
-                options={
-                    CONF_REC_EU: user_input.get(CONF_REC_EU, False),
-                    CONF_REC_US: user_input.get(CONF_REC_US, False),
-                    CONF_REC_ETF: user_input.get(CONF_REC_ETF, False),
-                },
-            )
+            api_key = str(user_input.get(CONF_API_KEY, "")).strip()
+            scan_interval = user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+            if not api_key:
+                errors["base"] = "api_key_required"
+            else:
+                try:
+                    await self._async_validate_api_key(api_key)
+                except DanelfinAuthError:
+                    errors["base"] = "invalid_api_key"
+                except DanelfinApiError:
+                    errors["base"] = "cannot_connect"
+
+            if not errors:
+                return self.async_create_entry(
+                    title="Danelfin",
+                    data={"is_base": True, CONF_API_KEY: api_key},
+                    options={
+                        CONF_REC_EU: user_input.get(CONF_REC_EU, False),
+                        CONF_REC_US: user_input.get(CONF_REC_US, False),
+                        CONF_REC_ETF: user_input.get(CONF_REC_ETF, False),
+                        CONF_SCAN_INTERVAL: scan_interval,
+                    },
+                )
 
         return self.async_show_form(
             step_id="user",
-            data_schema=_rec_schema({}),
+            data_schema=_base_schema({}),
+            errors=errors,
         )
+
+    async def _async_validate_api_key(self, api_key: str) -> None:
+        """Validate the API key by fetching a lightweight endpoint."""
+        timeout = aiohttp.ClientTimeout(total=10)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            client = DanelfinApiClient(api_key, session=session)
+            await client.async_get_sectors()
 
     async def async_step_add_ticker(
         self, user_input: dict[str, Any] | None = None
@@ -178,5 +237,5 @@ class DanelfinOptionsFlow(OptionsFlow):
 
         return self.async_show_form(
             step_id="init",
-            data_schema=_rec_schema(current),
+            data_schema=_options_schema(current),
         )

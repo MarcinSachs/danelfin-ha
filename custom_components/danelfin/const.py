@@ -3,42 +3,18 @@
 DOMAIN = "danelfin"
 
 # Default scan interval (hours) – Danelfin updates once a day after market close
-DEFAULT_SCAN_INTERVAL = 4
+DEFAULT_SCAN_INTERVAL = 8
 
 # Request timeout (seconds)
 REQUEST_TIMEOUT = 30
 
-# Base URL (kept for backwards compatibility)
-BASE_URL = "https://danelfin.com/stock/{ticker}"
-
-# Market / asset type identifiers
+# Config entry keys
+CONF_API_KEY = "api_key"
+CONF_SCAN_INTERVAL = "scan_interval"
 CONF_MARKET = "market"
 MARKET_US = "us"
-MARKET_EU = "eu"
+MARKET_EU = "europe"
 MARKET_ETF = "etf"
-
-# URL templates per market / asset type
-BASE_URL_MAP: dict[str, str] = {
-    MARKET_US: "https://danelfin.com/stock/{ticker}",
-    MARKET_EU: "https://danelfin.com/stock/eu/{ticker}",
-    MARKET_ETF: "https://danelfin.com/etf/{ticker}",
-}
-
-# HTTP headers that mimic a regular browser visit
-# A realistic User-Agent reduces the chance of being blocked
-REQUEST_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Connection": "keep-alive",
-    "Upgrade-Insecure-Requests": "1",
-    "Cache-Control": "max-age=0",
-}
 
 # Config entry keys
 CONF_TICKER = "ticker"     # single ticker symbol stored in entry.data
@@ -51,26 +27,22 @@ CONF_REC_ETF = "rec_etf"  # track top 5 ETFs
 
 TOP_N = 5  # number of top positions tracked per category
 
-# Ranking page URLs and link patterns
 RANKING_CATEGORIES: dict[str, dict] = {
     CONF_REC_EU: {
-        "url": "https://danelfin.com/european-stocks",
-        "link_re": r'/stock/eu/([^"/?]+)',
         "market": MARKET_EU,
+        "asset": None,
         "label": "Top EU Stocks",
         "sensor_prefix": "top_eu",
     },
     CONF_REC_US: {
-        "url": "https://danelfin.com/us-stocks",
-        "link_re": r'"/stock/([A-Z0-9]{1,10})"',
         "market": MARKET_US,
+        "asset": None,
         "label": "Top US Stocks",
-        "sensor_prefix": "top_us",
+ "sensor_prefix": "top_us",
     },
     CONF_REC_ETF: {
-        "url": "https://danelfin.com/top-etfs",
-        "link_re": r'/etf/([A-Z0-9]{1,10})',
-        "market": MARKET_ETF,
+        "market": MARKET_US,
+        "asset": MARKET_ETF,
         "label": "Top ETFs",
         "sensor_prefix": "top_etf",
     },

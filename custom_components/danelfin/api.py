@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import date as _date
 from typing import Any
 
 import aiohttp
@@ -71,8 +72,15 @@ class DanelfinApiClient:
         if ticker:
             params["ticker"] = ticker
 
-        if date:
-            params["date"] = date
+        # The EU market endpoint requires at least one of ticker or date.
+        # When neither is supplied, default to the most recent weekday so
+        # the API returns the latest available ranking instead of a 404.
+        resolved_date = date
+        if not resolved_date and not ticker and market == MARKET_EU:
+            resolved_date = self._latest_weekday().isoformat()
+
+        if resolved_date:
+            params["date"] = resolved_date
 
         if market == MARKET_EU:
             params["market"] = "europe"
@@ -174,6 +182,20 @@ class DanelfinApiClient:
         except aiohttp.ClientError as exc:
             _LOGGER.debug("Danelfin aiohttp transport error", exc_info=exc)
             raise DanelfinApiError("Danelfin API request failed") from exc
+
+    @staticmethod
+    def _latest_weekday() -> _date:
+        """Return the most recent completed weekday (Mon-Fri).
+
+        Starts from yesterday so we avoid requesting data for a day whose
+        market has not yet closed (API returns 404 for future/today's dates
+        if the update has not been published yet).
+        """
+        from datetime import timedelta
+        d = _date.today() - timedelta(days=1)
+        while d.weekday() >= 5:  # skip Saturday (5) and Sunday (6)
+            d -= timedelta(days=1)
+        return d
 
     @staticmethod
     def _is_date_key(key: str) -> bool:

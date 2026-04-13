@@ -175,18 +175,26 @@ class DanelfinApiClient:
             _LOGGER.debug("Danelfin aiohttp transport error", exc_info=exc)
             raise DanelfinApiError("Danelfin API request failed") from exc
 
+    @staticmethod
+    def _is_date_key(key: str) -> bool:
+        """Return True if *key* looks like an ISO date (YYYY-MM-DD)."""
+        import re as _re  # noqa: PLC0415
+        return bool(_re.match(r"^\d{4}-\d{2}-\d{2}$", key))
+
     def _parse_ranking_response(
         self, raw: Any, requested_ticker: str | None = None
     ) -> dict[str, dict[str, Any]]:
         if not isinstance(raw, dict):
             raise DanelfinApiError("Unexpected ranking response format")
 
-        if len(raw) == 1 and "date" in raw and isinstance(raw["date"], dict):
-            if requested_ticker:
-                return {
-                    requested_ticker: self._normalize_score_entry(raw["date"])
-                }
-            return {"date": self._normalize_score_entry(raw["date"])}
+        # API returns {"<YYYY-MM-DD>": {scores}} (one or many dates) when a
+        # ticker is requested without a date filter.  Pick the first key —
+        # the API returns dates in descending order so that is the latest.
+        if requested_ticker and all(self._is_date_key(k) for k in raw):
+            latest_key = next(iter(raw))
+            latest_value = raw[latest_key]
+            if isinstance(latest_value, dict) and self._is_score_entry(latest_value):
+                return {requested_ticker: self._normalize_score_entry(latest_value)}
 
         results: dict[str, dict[str, Any]] = {}
         for key, value in raw.items():
@@ -195,7 +203,8 @@ class DanelfinApiClient:
             elif isinstance(value, dict):
                 for inner_key, inner_value in value.items():
                     if isinstance(inner_value, dict) and self._is_score_entry(inner_value):
-                        results[inner_key] = self._normalize_score_entry(inner_value)
+                        results[inner_key] = self._normalize_score_entry(
+                            inner_value)
 
         if not results:
             raise DanelfinApiError("Unable to parse ranking response")
@@ -214,7 +223,8 @@ class DanelfinApiClient:
                 except (TypeError, ValueError):
                     normalized[sensor_key] = None
 
-        normalized["rating"] = self._derive_rating(normalized.get(SENSOR_AI_SCORE))
+        normalized["rating"] = self._derive_rating(
+            normalized.get(SENSOR_AI_SCORE))
         return normalized
 
     def _derive_rating(self, ai_score: int | None) -> str:

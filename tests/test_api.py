@@ -19,9 +19,39 @@ import types
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 COMP_DIR = PROJECT_ROOT / "custom_components" / "danelfin"
 PKG = "custom_components.danelfin"
+
+# ---------------------------------------------------------------------------
+# Real aiohttp — save reference BEFORE any stubbing so live tests can use it.
+# ---------------------------------------------------------------------------
+try:
+    import aiohttp as _real_aiohttp  # noqa: PLC0415
+except ImportError:
+    _real_aiohttp = None  # type: ignore[assignment]
+
+# ---------------------------------------------------------------------------
+# Load API key from .env (no external deps required)
+# ---------------------------------------------------------------------------
+
+
+def _load_env(path: Path) -> dict[str, str]:
+    env: dict[str, str] = {}
+    if not path.exists():
+        return env
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        env[key.strip()] = value.strip().strip('"').strip("'")
+    return env
+
+
+_API_KEY: str = _load_env(PROJECT_ROOT / ".env").get("API_KEY", "")
 
 # Stub Home Assistant and aiohttp dependencies used by api.py.
 if "aiohttp" not in sys.modules:
@@ -35,7 +65,8 @@ if "aiohttp" not in sys.modules:
 for package_name in ("custom_components", "custom_components.danelfin"):
     if package_name not in sys.modules:
         pkg = types.ModuleType(package_name)
-        pkg.__path__ = [str(COMP_DIR)] if package_name == PKG else [str(PROJECT_ROOT / "custom_components")]
+        pkg.__path__ = [str(COMP_DIR)] if package_name == PKG else [
+            str(PROJECT_ROOT / "custom_components")]
         sys.modules[package_name] = pkg
 
 spec = importlib.util.spec_from_file_location(
@@ -53,6 +84,11 @@ DanelfinAuthError = api.DanelfinAuthError
 DanelfinBadRequestError = api.DanelfinBadRequestError
 DanelfinRateLimitError = api.DanelfinRateLimitError
 DanelfinServerError = api.DanelfinServerError
+
+# Constants used by live tests (loaded transitively with api.py via const.py)
+_const = sys.modules.get(f"{PKG}.const")
+MARKET_US: str = getattr(_const, "MARKET_US", "us")
+MARKET_ETF: str = getattr(_const, "MARKET_ETF", "etf")
 
 
 class DummyResponse:
@@ -85,16 +121,25 @@ class DummySession:
 
 
 def test_ranking_ticker_response() -> None:
+    # Real API returns date strings as keys (descending order); parser picks the first.
     response_payload = {
-        "date": {
+        "2026-04-11": {
             "aiscore": 10,
             "fundamental": 9,
             "technical": 10,
             "sentiment": 10,
             "low_risk": 8,
-        }
+        },
+        "2026-04-10": {
+            "aiscore": 8,
+            "fundamental": 7,
+            "technical": 8,
+            "sentiment": 7,
+            "low_risk": 6,
+        },
     }
-    session = DummySession(DummyResponse(200, response_payload, text_data="{}"))
+    session = DummySession(DummyResponse(
+        200, response_payload, text_data="{}"))
     client = DanelfinApiClient("test-key", session=session)
 
     result = asyncio.run(client.async_get_ranking(ticker="NVDA"))
@@ -121,11 +166,14 @@ def test_sectors_and_industries() -> None:
         {"industry": "airlines"},
     ]
 
-    client = DanelfinApiClient("test-key", session=DummySession(DummyResponse(200, sectors_payload, text_data="[]")))
+    client = DanelfinApiClient(
+        "test-key", session=DummySession(DummyResponse(200, sectors_payload, text_data="[]")))
     assert asyncio.run(client.async_get_sectors()) == ["energy", "materials"]
 
-    client = DanelfinApiClient("test-key", session=DummySession(DummyResponse(200, industries_payload, text_data="[]")))
-    assert asyncio.run(client.async_get_industries()) == ["aerospace-defense", "airlines"]
+    client = DanelfinApiClient(
+        "test-key", session=DummySession(DummyResponse(200, industries_payload, text_data="[]")))
+    assert asyncio.run(client.async_get_industries()) == [
+        "aerospace-defense", "airlines"]
 
 
 def test_error_mapping() -> None:
@@ -140,11 +188,13 @@ def test_error_mapping() -> None:
     for status, expected_exception in cases:
         client = DanelfinApiClient(
             "test-key",
-            session=DummySession(DummyResponse(status, {"error": "fail"}, text_data="error")),
+            session=DummySession(DummyResponse(
+                status, {"error": "fail"}, text_data="error")),
         )
         try:
             asyncio.run(client.async_get_sectors())
-            raise AssertionError(f"Expected {expected_exception.__name__} for status {status}")
+            raise AssertionError(
+                f"Expected {expected_exception.__name__} for status {status}")
         except expected_exception:
             pass
 
@@ -155,25 +205,154 @@ def test_invalid_ranking_response_raises() -> None:
 
     try:
         asyncio.run(client.async_get_ranking(ticker="NVDA"))
-        raise AssertionError("Expected DanelfinApiError for invalid ranking response")
+        raise AssertionError(
+            "Expected DanelfinApiError for invalid ranking response")
     except DanelfinApiError:
         pass
 
 
-async def main() -> None:
-    tests = [
+# ---------------------------------------------------------------------------
+# Live tests — run only when _API_KEY is set and real aiohttp is available
+# ---------------------------------------------------------------------------
+
+_EXPECTED_SCORE_KEYS = {
+    "ai_score",
+    "fundamental_score",
+    "technical_score",
+    "sentiment_score",
+    "risk_score",
+    "rating",
+}
+
+
+_need_api_key = pytest.mark.skipif(
+    not _API_KEY or _real_aiohttp is None,
+    reason="API_KEY not set in .env or aiohttp not installed",
+)
+
+
+@_need_api_key
+async def test_live_sectors_returns_list() -> None:
+    """GET /sectors returns a non-empty list of sector slugs."""
+    async with _real_aiohttp.ClientSession(timeout=_real_aiohttp.ClientTimeout(total=15)) as session:
+        client = DanelfinApiClient(_API_KEY, session=session)
+        sectors = await client.async_get_sectors()
+
+    assert isinstance(sectors, list), f"Expected list, got {type(sectors)}"
+    assert len(sectors) > 0, "Sectors list is empty"
+    assert all(isinstance(s, str)
+               for s in sectors), "All sectors should be strings"
+    print(f"      sectors ({len(sectors)}): {sectors[:5]} …")
+
+
+@_need_api_key
+async def test_live_ranking_us_stock() -> None:
+    """GET /ranking for NVDA returns a ticker-keyed dict with the latest scores."""
+    async with _real_aiohttp.ClientSession(timeout=_real_aiohttp.ClientTimeout(total=15)) as session:
+        client = DanelfinApiClient(_API_KEY, session=session)
+        result = await client.async_get_ranking(ticker="NVDA", market=MARKET_US)
+
+    assert "NVDA" in result, (
+        f"Expected 'NVDA' key (latest date picked by parser), got: {list(result.keys())[:5]}"
+    )
+    data = result["NVDA"]
+    missing = _EXPECTED_SCORE_KEYS - data.keys()
+    assert not missing, f"Missing score keys for NVDA: {missing}"
+    assert 1 <= data["ai_score"] <= 10, f"ai_score out of range: {data['ai_score']}"
+    print(f"      NVDA (latest): {data}")
+
+
+@_need_api_key
+async def test_live_ranking_etf() -> None:
+    """GET /ranking for SPY (ETF) returns a ticker-keyed dict with the latest scores."""
+    await asyncio.sleep(3)  # avoid 429 when running tests back-to-back
+    try:
+        async with _real_aiohttp.ClientSession(timeout=_real_aiohttp.ClientTimeout(total=15)) as session:
+            client = DanelfinApiClient(_API_KEY, session=session)
+            result = await client.async_get_ranking(ticker="SPY", market=MARKET_ETF)
+    except DanelfinRateLimitError:
+        pytest.skip("Hit rate limit — run again in a moment")
+
+    assert "SPY" in result, (
+        f"Expected 'SPY' key (latest date picked by parser), got: {list(result.keys())[:5]}"
+    )
+    data = result["SPY"]
+    missing = _EXPECTED_SCORE_KEYS - data.keys()
+    assert not missing, f"Missing score keys for SPY: {missing}"
+    print(f"      SPY (latest): {data}")
+
+
+@_need_api_key
+async def test_live_invalid_key_auth_error() -> None:
+    """A clearly wrong key format should raise DanelfinAuthError (401/403).
+
+    Note: some API gateways return 200 with empty data instead of 401 for
+    unrecognised keys. In that case we at least confirm no crash occurs and
+    log the actual behaviour.
+    """
+    async with _real_aiohttp.ClientSession(timeout=_real_aiohttp.ClientTimeout(total=15)) as session:
+        client = DanelfinApiClient("invalid-key-xyz", session=session)
+        try:
+            await client.async_get_sectors()
+            # API did not raise — it accepted the key (permissive gateway).
+            print("      NOTE: API returned 200 for invalid key (no 401/403 enforced).")
+        except DanelfinAuthError:
+            pass  # ideal behaviour
+
+
+def main() -> None:
+    # Mock tests are sync functions that call asyncio.run() internally.
+    # Keep main() sync to avoid nested event loop errors.
+    mock_tests = [
         test_ranking_ticker_response,
         test_sectors_and_industries,
         test_error_mapping,
         test_invalid_ranking_response_raises,
     ]
 
-    for test in tests:
-        await test()
-        print(f"PASS: {test.__name__}")
+    # Live tests are async coroutines — each gets its own asyncio.run() call.
+    live_tests = [
+        test_live_sectors_returns_list,
+        test_live_ranking_us_stock,
+        test_live_ranking_etf,
+        test_live_invalid_key_auth_error,
+    ]
 
-    print("All Danelfin API client tests passed.")
+    passed = 0
+    failed = 0
+
+    print("=== Mock tests (no API key required) ===")
+    for test in mock_tests:
+        try:
+            test()
+            print(f"PASS: {test.__name__}")
+            passed += 1
+        except Exception as exc:  # noqa: BLE001
+            print(f"FAIL: {test.__name__} — {exc}")
+            failed += 1
+
+    print()
+    if not _API_KEY:
+        print("=== Live tests SKIPPED (no API_KEY in .env) ===")
+    elif _real_aiohttp is None:
+        print("=== Live tests SKIPPED (aiohttp not installed) ===")
+    else:
+        print("=== Live tests (real Danelfin API) ===")
+        for test in live_tests:
+            try:
+                print(f"RUN:  {test.__name__}")
+                asyncio.run(test())
+                print(f"PASS: {test.__name__}")
+                passed += 1
+            except Exception as exc:  # noqa: BLE001
+                print(f"FAIL: {test.__name__} — {exc}")
+                failed += 1
+
+    print()
+    print(f"Results: {passed} passed, {failed} failed.")
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

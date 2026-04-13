@@ -1,6 +1,5 @@
 {
   "name": "Danelfin AI Stock Scores",
-  "description": "Integration for Danelfin AI stock scores, ratings, and top-5 recommendations.",
   "render_readme": true,
   "homeassistant": "2024.1.0"
 }

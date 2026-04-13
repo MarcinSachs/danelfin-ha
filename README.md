@@ -57,7 +57,8 @@ This integration uses two kinds of entries:
 
 1. Go to **Settings → Devices & Services → Add Integration**.
 2. Search for *Danelfin*.
-3. On the first screen, enter your Danelfin **API key**, choose which **top-5 recommendation lists** to enable (EU, US, ETF), and optionally adjust the scan interval.
+3. On the first screen, enter your Danelfin **API key**, choose which **top-5 recommendation lists** to enable (EU, US, ETF), and optionally adjust the scan interval in hours.
+   - The scan interval is stored in hours and is used by Home Assistant as a `timedelta(hours=...)`.
 4. After creating the base integration entry, add an additional entry for each ticker you want to track:
    - Enter the **ticker symbol** (e.g. `NVDA`, `SAN.MC`, `BUG`).
    - Select the **market type**: US Stock, European Stock, or ETF.

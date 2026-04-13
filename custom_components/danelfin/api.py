@@ -127,16 +127,30 @@ class DanelfinApiClient:
         headers: dict[str, str],
         params: dict[str, str] | None,
     ) -> Any:
+        _LOGGER.debug("Danelfin API request: %s params=%s", url, params)
         try:
             async with session.get(url, params=params, headers=headers) as resp:
                 content = await resp.text()
+                response_method = getattr(resp, "method", "GET")
+                response_url = getattr(resp, "url", url)
+                response_headers = getattr(resp, "headers", {}) or {}
+                _LOGGER.debug(
+                    "Danelfin API response: %s %s status=%s body=%s",
+                    response_method,
+                    response_url,
+                    resp.status,
+                    content[:300],
+                )
+
                 if resp.status in (401, 403):
                     raise DanelfinAuthError(
                         f"Authentication failed (HTTP {resp.status})"
                     )
                 if resp.status == 429:
+                    retry_after = response_headers.get("Retry-After")
+                    retry_info = f" Retry-After: {retry_after}." if retry_after else ""
                     raise DanelfinRateLimitError(
-                        "Danelfin API rate limit exceeded (HTTP 429)"
+                        f"Danelfin API rate limit exceeded (HTTP 429).{retry_info}"
                     )
                 if resp.status == 400:
                     raise DanelfinBadRequestError(
@@ -144,7 +158,7 @@ class DanelfinApiClient:
                     )
                 if 500 <= resp.status < 600:
                     raise DanelfinServerError(
-                        f"Danelfin server error: HTTP {resp.status}"
+                        f"Danelfin server error: HTTP {resp.status}. Response: {content}"
                     )
                 if resp.status != 200:
                     raise DanelfinApiError(
@@ -158,6 +172,7 @@ class DanelfinApiClient:
                         f"Failed to parse JSON from {url}: {exc}"
                     ) from exc
         except aiohttp.ClientError as exc:
+            _LOGGER.debug("Danelfin aiohttp transport error", exc_info=exc)
             raise DanelfinApiError("Danelfin API request failed") from exc
 
     def _parse_ranking_response(

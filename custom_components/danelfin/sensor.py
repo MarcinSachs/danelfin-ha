@@ -19,6 +19,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant
@@ -54,6 +55,7 @@ class DanelfinSensorEntityDescription(SensorEntityDescription):
     """Extended description that carries the data key used by the coordinator."""
 
     data_key: str
+    entity_category: EntityCategory | None = None
 
 
 # One description per sensor type; each ticker gets its own instance of each
@@ -132,6 +134,7 @@ SENSOR_DESCRIPTIONS: tuple[DanelfinSensorEntityDescription, ...] = (
         name="Price",
         icon="mdi:currency-usd",
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
         suggested_display_precision=2,
     ),
     DanelfinSensorEntityDescription(

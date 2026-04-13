@@ -104,6 +104,12 @@ if "homeassistant.helpers.device_registry" not in sys.modules:
     setattr(device_registry, "DeviceInfo", DeviceInfo)
     setattr(device_registry, "DeviceEntryType", DeviceEntryType)
     sys.modules["homeassistant.helpers.device_registry"] = device_registry
+if "homeassistant.helpers.entity" not in sys.modules:
+    entity_helper = types.ModuleType("homeassistant.helpers.entity")
+    class EntityCategory:
+        DIAGNOSTIC = "diagnostic"
+    setattr(entity_helper, "EntityCategory", EntityCategory)
+    sys.modules["homeassistant.helpers.entity"] = entity_helper
 if "homeassistant.helpers.entity_platform" not in sys.modules:
     entity_platform = types.ModuleType("homeassistant.helpers.entity_platform")
     AddEntitiesCallback = object

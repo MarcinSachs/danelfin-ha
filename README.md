@@ -22,6 +22,8 @@ Supports **US stocks**, **European stocks**, and **ETFs** — both for individua
 
 Note: `sensor.danelfin_api_connectivity_status` is created only once for the base integration entry and reports the health of the configured API key and connection.
 
+The price sensor is marked as a diagnostic entity and may be hidden by default in some Home Assistant views.
+
 ## Recommendation sensors (top-5 lists)
 
 When enabled during setup (or via integration options), three additional **devices** are created — one per category — each with 5 position-based sensors:
@@ -49,15 +51,19 @@ You can enable or disable each recommendation list at any time via **Settings �
 
 ## Setup
 
+This integration uses two kinds of entries:
+- A single **base integration entry** for the Danelfin **API key** and shared recommendation options.
+- One **ticker entry** per stock or ETF to track.
+
 1. Go to **Settings → Devices & Services → Add Integration**.
 2. Search for *Danelfin*.
 3. On the first screen, enter your Danelfin **API key**, choose which **top-5 recommendation lists** to enable (EU, US, ETF), and optionally adjust the scan interval.
-4. After creating the base integration entry, click **Add entry** again for each individual ticker you want to track:
+4. After creating the base integration entry, add an additional entry for each ticker you want to track:
    - Enter the **ticker symbol** (e.g. `NVDA`, `SAN.MC`, `BUG`).
    - Select the **market type**: US Stock, European Stock, or ETF.
 5. Repeat step 4 for as many tickers as you need.
-6. To stop tracking a ticker, delete its entry.
-7. To change recommendation lists or the refresh interval after install, click **Configure** on the Danelfin integration.
+6. To stop tracking a ticker, delete its ticker entry.
+7. To update the API key, recommendation lists, or refresh interval later, choose **Configure** on the Danelfin integration.
 
 ### Supported market types
 

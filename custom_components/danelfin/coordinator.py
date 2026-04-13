@@ -73,6 +73,12 @@ class DanelfinCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("Skipping Danelfin update on weekend")
             return self.data
 
+        _LOGGER.debug(
+            "Starting Danelfin update: tickers=%s market=%s",
+            self.tickers,
+            self.market,
+        )
+
         results: dict[str, dict[str, Any]] = {}
         connector = aiohttp.TCPConnector(ssl=True)
         timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
@@ -83,6 +89,7 @@ class DanelfinCoordinator(DataUpdateCoordinator):
         ) as session:
             client = DanelfinApiClient(self.api_key, session=session)
             for ticker in self.tickers:
+                _LOGGER.debug("Requesting Danelfin ranking for ticker=%s", ticker)
                 try:
                     response = await client.async_get_ranking(
                         ticker=ticker,
@@ -110,6 +117,14 @@ class DanelfinCoordinator(DataUpdateCoordinator):
                         ticker,
                     )
                     continue
+
+                null_keys = [key for key, value in ticker_data.items() if value is None]
+                if null_keys:
+                    _LOGGER.debug(
+                        "Danelfin returned null values for %s: %s",
+                        ticker,
+                        null_keys,
+                    )
 
                 ticker_data["market"] = self.market
                 ticker_data["last_updated"] = utcnow().isoformat()
@@ -168,6 +183,7 @@ class DanelfinApiHealthCoordinator(DataUpdateCoordinator):
             try:
                 await client.async_get_sectors()
             except DanelfinAuthError as exc:
+                _LOGGER.debug("API health check auth failure: %s", exc)
                 return {
                     "status": "Authentication Failed",
                     "error": str(exc),
@@ -175,6 +191,7 @@ class DanelfinApiHealthCoordinator(DataUpdateCoordinator):
                     "healthy": False,
                 }
             except DanelfinRateLimitError as exc:
+                _LOGGER.debug("API health check rate limited: %s", exc)
                 return {
                     "status": "Rate Limited",
                     "error": str(exc),
@@ -182,6 +199,7 @@ class DanelfinApiHealthCoordinator(DataUpdateCoordinator):
                     "healthy": False,
                 }
             except DanelfinApiError as exc:
+                _LOGGER.debug("API health check connection failed: %s", exc)
                 return {
                     "status": "Connection Failed",
                     "error": str(exc),
@@ -189,6 +207,7 @@ class DanelfinApiHealthCoordinator(DataUpdateCoordinator):
                     "healthy": False,
                 }
 
+        _LOGGER.debug("API health check succeeded")
         return {
             "status": "Connected",
             "error": "",

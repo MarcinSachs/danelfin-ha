@@ -1,117 +1,98 @@
-# danelfin-ha
+<div align="center">
 
-Home Assistant custom integration that pulls **AI scores** from [Danelfin](https://danelfin.com) via the official Danelfin REST API and exposes them as sensors.
+# 📈 Danelfin for Home Assistant
+**Artificial Intelligence for your Investment Portfolio**
 
-Supports **US stocks**, **European stocks**, and **ETFs** — both for individual tickers and as automatically-updated **top-5 recommendation lists**.
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/MarcinSachs/danelfin-ha?style=flat-square)](https://github.com/MarcinSachs/danelfin-ha)
+![GitHub stars](https://img.shields.io/github/stars/MarcinSachs/danelfin-ha?style=flat-square)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=flat-square)](https://my.home-assistant.io/redirect/hacs_repository/?owner=MarcinSachs&repository=danelfin-ha&category=Integration)
 
-## Sensors created per ticker
+[Official Website](https://danelfin.com) | [API Documentation](https://danelfin.com/api-rest) | [Support the Project](https://github.com/MarcinSachs/danelfin-ha/issues)
 
-| Sensor | Description | Unit |
-|---|---|---|
-| `sensor.danelfin_TICKER_ai_score` | Overall AI score (1–10) | – |
-| `sensor.danelfin_TICKER_fundamental_score` | Fundamental sub-score | – |
-| `sensor.danelfin_TICKER_technical_score` | Technical sub-score | – |
-| `sensor.danelfin_TICKER_sentiment_score` | Sentiment sub-score | – |
-| `sensor.danelfin_TICKER_risk_score` | Risk score | – |
-| `sensor.danelfin_TICKER_rating` | Rating: Strong Buy / Buy / Hold / Sell / Strong Sell | – |
-| `sensor.danelfin_TICKER_beat_market_probability` | Probability of outperforming the market / ETF universe in 3 months | % |
-| `sensor.danelfin_TICKER_probability_advantage` | Advantage over average stock/ETF probability | % |
-| `sensor.danelfin_TICKER_price` | Last price | currency (e.g. USD, EUR) |
-| `sensor.danelfin_TICKER_company_name` | Full company / ETF name | – |
-| `sensor.danelfin_api_connectivity_status` | Danelfin API connectivity status (global base entry sensor) | – |
+---
 
-Note: `sensor.danelfin_api_connectivity_status` is created only once for the base integration entry and reports the health of the configured API key and connection.
+<img src="https://cdn.danelfin.com/assets/next/images/danelfinLogos/logoDanelfin.svg" width="300" alt="Danelfin Logo">
 
-The price sensor is marked as a diagnostic entity and may be hidden by default in some Home Assistant views.
+</div>
 
-## Recommendation sensors (top-5 lists)
+## ✨ Key Features
+Monitor your stocks and ETFs using Danelfin's **AI-driven scores**. This integration brings professional-grade financial analytics directly to your Home Assistant dashboard.
 
-When enabled during setup (or via integration options), three additional **devices** are created — one per category — each with 5 position-based sensors:
+* 🚀 **AI Smart Scores:** Track the overall AI Score (1-10) and sub-scores (Fundamental, Technical, Sentiment).
+* 🇪🇺 **Global Coverage:** Support for US Stocks, European Stocks (RIC format), and ETFs.
+* 🏆 **Top-5 Recommendations:** Automatically updated lists for the best investment opportunities in each market.
+* 📊 **Professional Analytics:** Monitor "Beat Market Probability" and price data for every tracked ticker.
+* ⚡ **Efficiency:** Built on the official REST API with `DataUpdateCoordinator` to save your API quota.
 
-| Sensor | State | Attributes |
-|---|---|---|
-| `sensor.danelfin_top_eu_1` … `_5` | Ticker symbol (e.g. `SAN.MC`) | `rank`, `company`, `ai_score`, `rating` |
-| `sensor.danelfin_top_us_1` … `_5` | Ticker symbol (e.g. `NVDA`) | `rank`, `company`, `ai_score`, `rating` |
-| `sensor.danelfin_top_etf_1` … `_5` | Ticker symbol (e.g. `BUG`) | `rank`, `company`, `ai_score`, `rating` |
+---
 
-Sensors use **position-based names** (neutral) so they remain stable as the ranking changes — the ticker in the state value changes, not the entity ID.
+## 🛠 Installation
 
-You can enable or disable each recommendation list at any time via **Settings → Devices & Services → Danelfin → Configure**.
+### Option 1: HACS (Recommended)
+The easiest way to install and stay updated.
 
-## Installation
+[![Open your Home Assistant instance and open a repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=MarcinSachs&repository=danelfin-ha&category=Integration)
 
-### Via HACS (recommended)
-1. Add this repository as a **Custom Repository** in HACS (type: Integration).
-2. Install *Danelfin AI Stock Scores*.
-3. Restart Home Assistant.
+1. Click the button above or go to **HACS** → **Integrations**.
+2. Select **Custom repositories** and add `https://github.com/MarcinSachs/danelfin-ha` as an **Integration**.
+3. Search for **Danelfin AI Stock Scores** and install it.
+4. **Restart** Home Assistant.
 
-### Manual
-1. Copy `custom_components/danelfin/` into your HA `config/custom_components/` directory.
-2. Restart Home Assistant.
+### Option 2: Manual
+1. Download the `danelfin` folder from `custom_components/`.
+2. Paste it into your `config/custom_components/` directory.
+3. **Restart** Home Assistant.
 
-## Setup
+---
 
-This integration uses two kinds of entries:
-- A single **base integration entry** for the Danelfin **API key** and shared recommendation options.
-- One **ticker entry** per stock or ETF to track.
+## ⚙️ Configuration
 
-1. Go to **Settings → Devices & Services → Add Integration**.
-2. Search for *Danelfin*.
-3. On the first screen, enter your Danelfin **API key**, choose which **top-5 recommendation lists** to enable (EU, US, ETF), and optionally adjust the scan interval in hours.
-   - The scan interval is stored in hours and is used by Home Assistant as a `timedelta(hours=...)`.
-4. After creating the base integration entry, add an additional entry for each ticker you want to track:
-   - Enter the **ticker symbol** (e.g. `NVDA`, `SAN.MC`, `BUG`).
-   - Select the **market type**: US Stock, European Stock, or ETF.
-5. Repeat step 4 for as many tickers as you need.
-6. To stop tracking a ticker, delete its ticker entry.
-7. To update the API key, recommendation lists, or refresh interval later, choose **Configure** on the Danelfin integration.
+1. **Base Entry:** Go to **Settings** → **Devices & Services** → **Add Integration** and search for **Danelfin**.
+   - Enter your **API Key**.
+   - Enable the **Top-5 Lists** you want to track.
+   - Set the **Update Interval** (default: 8h).
+2. **Adding Tickers:** Add more entries of the Danelfin integration to track specific stocks/ETFs.
+   - Enter the ticker (e.g., `NVDA`, `AAPL`, `SAP.DE`).
+   - Select the correct **Market Type**.
 
-### Supported market types
+---
 
-| Type | Example tickers | Danelfin URL |
-|---|---|---|
-| US Stock | `NVDA`, `AAPL` | `danelfin.com/stock/{ticker}` |
-| European Stock | `SAN.MC`, `ADS.DE` | `danelfin.com/stock/eu/{ticker}` |
-| ETF | `BUG`, `SPY` | `danelfin.com/etf/{ticker}` |
+## 📋 Available Sensors
 
-## How it works
+### Individual Ticker Sensors
+| Category | Sensors |
+| :--- | :--- |
+| **Main AI** | AI Score, Rating (Buy/Sell), Beat Market Probability |
+| **Sub-Scores** | Fundamental, Technical, Sentiment, Risk |
+| **Market Data** | Last Price, Probability Advantage, Company Name |
+| **System** | API Connectivity Status |
 
-- Uses the official Danelfin REST API for all ticker and recommendation data.
-- A central `DataUpdateCoordinator` refreshes data on the configured interval.
-- A diagnostic API connectivity sensor helps surface problems with authentication or rate limiting.
-- Recommendation lists are also retrieved from the official API, not from HTML scraping.
-- Update interval is configurable in hours and defaults to 8 hours.
+### Recommendation Lists (Top-5)
+Stay on top of the market with position-based sensors that update as the ranking changes:
+* `sensor.danelfin_top_us_1..5` (US Market)
+* `sensor.danelfin_top_eu_1..5` (European Market)
+* `sensor.danelfin_top_etf_1..5` (ETFs)
 
-## Testing without Home Assistant
+---
 
-Run the integration unit tests with pytest:
+## 📈 Visualizing Data
+### Grafana & InfluxDB
+For historical tracking of AI scores, we recommend using InfluxDB. You can easily create charts showing how a stock's AI rating has evolved over time.
 
-```bash
-pytest tests/test_api.py
-pytest tests/test_stage.py
-```
+---
 
-## Troubleshooting
+## ☕ Support the Project
+If you find my work useful, please consider supporting me!
 
-- **Invalid API key**: Verify the API key in the integration setup page. The API connectivity sensor will show `Authentication Failed` if the key is rejected.
-- **Rate limited**: If the API connectivity sensor reports `Rate Limited`, increase the scan interval in integration options.
-- **No sensor data**: Check that each ticker entry is configured with the correct market type and that the base integration entry has a valid API key.
+[![Buy Me A Coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=marcinsachs&button_colour=28a745&font_colour=ffffff&font_family=Inter&outline_colour=000000&coffee_colour=FFDD00)](https://www.buymeacoffee.com/marcinsachs)
 
-## Grafana integration
+---
 
-Use one of these approaches to visualize sensors in Grafana:
+## ⚠️ Disclaimer
+**This integration is for informational purposes only.** Danelfin AI scores are not investment advice. Please refer to [Danelfin's full disclaimer](https://danelfin.com/disclaimer).
 
-### Option A – InfluxDB (recommended for historical data)
-1. Install the [InfluxDB integration](https://www.home-assistant.io/integrations/influxdb/) in HA.
-2. Include the `danelfin_*` entities.
-3. Add an InfluxDB datasource in Grafana and query by measurement name.
+---
 
-### Option B – Grafana Infinity plugin (no DB needed)
-1. Install the [Infinity datasource](https://grafana.com/grafana/plugins/yesoreyeram-infinity-datasource/) in Grafana.
-2. Query the HA REST API: `http://homeassistant.local:8123/api/states/sensor.danelfin_nvda_ai_score`
-   with a Bearer token from a Long-Lived Access Token.
-
-## Disclaimer
-This integration uses the official Danelfin API for data access.
-Danelfin AI scores are not investment advice. See [Danelfin's disclaimer](https://danelfin.com/disclaimer).
-
+<div align="center">
+Developed with ❤️ by <a href="https://github.com/MarcinSachs">Marcin Sachs</a>
+</div>

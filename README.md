@@ -1,6 +1,6 @@
 # danelfin-ha
 
-Home Assistant custom integration that pulls **AI scores** from [Danelfin](https://danelfin.com) and exposes them as sensors.
+Home Assistant custom integration that pulls **AI scores** from [Danelfin](https://danelfin.com) via the official Danelfin REST API and exposes them as sensors.
 
 Supports **US stocks**, **European stocks**, and **ETFs** — both for individual tickers and as automatically-updated **top-5 recommendation lists**.
 
@@ -18,6 +18,9 @@ Supports **US stocks**, **European stocks**, and **ETFs** — both for individua
 | `sensor.danelfin_TICKER_probability_advantage` | Advantage over average stock/ETF probability | % |
 | `sensor.danelfin_TICKER_price` | Last price | currency (e.g. USD, EUR) |
 | `sensor.danelfin_TICKER_company_name` | Full company / ETF name | – |
+| `sensor.danelfin_api_connectivity_status` | Danelfin API connectivity status (global base entry sensor) | – |
+
+Note: `sensor.danelfin_api_connectivity_status` is created only once for the base integration entry and reports the health of the configured API key and connection.
 
 ## Recommendation sensors (top-5 lists)
 
@@ -48,13 +51,13 @@ You can enable or disable each recommendation list at any time via **Settings �
 
 1. Go to **Settings → Devices & Services → Add Integration**.
 2. Search for *Danelfin*.
-3. On the first screen, choose which **top-5 recommendation lists** to enable (EU, US, ETF). You can leave all unchecked and enable them later.
-4. Click **Add entry** for each individual ticker you want to track:
+3. On the first screen, enter your Danelfin **API key**, choose which **top-5 recommendation lists** to enable (EU, US, ETF), and optionally adjust the scan interval.
+4. After creating the base integration entry, click **Add entry** again for each individual ticker you want to track:
    - Enter the **ticker symbol** (e.g. `NVDA`, `SAN.MC`, `BUG`).
    - Select the **market type**: US Stock, European Stock, or ETF.
 5. Repeat step 4 for as many tickers as you need.
 6. To stop tracking a ticker, delete its entry.
-7. To change recommendation lists after install, click **Configure** on the Danelfin integration.
+7. To change recommendation lists or the refresh interval after install, click **Configure** on the Danelfin integration.
 
 ### Supported market types
 
@@ -66,27 +69,26 @@ You can enable or disable each recommendation list at any time via **Settings �
 
 ## How it works
 
-- Fetches the Danelfin page for each ticker using `aiohttp`.
-- Danelfin uses Next.js App Router (RSC streaming) — there is no `__NEXT_DATA__` blob. All data is extracted from the server-rendered HTML using CSS class anchors and RSC payload regex parsing.
-- Recommendation lists are fetched from Danelfin's ranking pages (`/european-stocks`, `/us-stocks`, `/top-etfs`) and parsed the same way.
-- Creates a **fresh HTTP session per update cycle** to avoid session-based access blocks.
-- Update interval is fixed at 4 hours (Danelfin publishes scores once per trading day).
+- Uses the official Danelfin REST API for all ticker and recommendation data.
+- A central `DataUpdateCoordinator` refreshes data on the configured interval.
+- A diagnostic API connectivity sensor helps surface problems with authentication or rate limiting.
+- Recommendation lists are also retrieved from the official API, not from HTML scraping.
+- Update interval is configurable in hours and defaults to 8 hours.
 
 ## Testing without Home Assistant
 
-A standalone test script is included to validate parsing before deploying to HA:
+Run the integration unit tests with pytest:
 
 ```bash
-python test_danelfin.py NVDA                     # US stock (default)
-python test_danelfin.py SAN.MC --market eu       # European stock
-python test_danelfin.py BUG --market etf         # ETF
+pytest tests/test_api.py
+pytest tests/test_stage.py
 ```
 
-A second script validates the recommendation ranking parser:
+## Troubleshooting
 
-```bash
-python test_rankings2.py                         # fetches and prints top-5 for EU, US, ETF
-```
+- **Invalid API key**: Verify the API key in the integration setup page. The API connectivity sensor will show `Authentication Failed` if the key is rejected.
+- **Rate limited**: If the API connectivity sensor reports `Rate Limited`, increase the scan interval in integration options.
+- **No sensor data**: Check that each ticker entry is configured with the correct market type and that the base integration entry has a valid API key.
 
 ## Grafana integration
 
@@ -103,6 +105,6 @@ Use one of these approaches to visualize sensors in Grafana:
    with a Bearer token from a Long-Lived Access Token.
 
 ## Disclaimer
-This integration scrapes publicly available data from Danelfin's website for personal use.
+This integration uses the official Danelfin API for data access.
 Danelfin AI scores are not investment advice. See [Danelfin's disclaimer](https://danelfin.com/disclaimer).
 

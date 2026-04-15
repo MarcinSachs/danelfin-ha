@@ -72,11 +72,11 @@ class DanelfinApiClient:
         if ticker:
             params["ticker"] = ticker
 
-        # The EU market endpoint requires at least one of ticker or date.
+        # The API requires at least one of ticker or date for all markets.
         # When neither is supplied, default to the most recent weekday so
-        # the API returns the latest available ranking instead of a 404.
+        # the API returns the latest available ranking instead of a 400/404.
         resolved_date = date
-        if not resolved_date and not ticker and market == MARKET_EU:
+        if not resolved_date and not ticker:
             resolved_date = self._latest_weekday().isoformat()
 
         if resolved_date:

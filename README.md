@@ -75,6 +75,11 @@ Stay on top of the market with position-based sensors that update as the ranking
 
 ---
 
+## API Key
+For API Key plan see: [Danelfin API Plans](https://danelfin.com/pricing/api/annual)
+
+---
+
 ## 📈 Visualizing Data
 ### Grafana & InfluxDB
 For historical tracking of AI scores, we recommend using InfluxDB. You can easily create charts showing how a stock's AI rating has evolved over time.

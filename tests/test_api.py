@@ -211,6 +211,40 @@ def test_invalid_ranking_response_raises() -> None:
         pass
 
 
+def test_ranking_top_etf_injects_date() -> None:
+    """When no ticker is given, the client must inject a date (API requirement).
+
+    Verifies the fix for Top ETFs / Top US Stocks sensors being unavailable:
+    previously, only the EU market got an auto-injected date.
+    """
+    response_payload = {
+        "2026-04-14": {
+            "QQQ": {"aiscore": 9, "fundamental": 8, "technical": 9, "sentiment": 8, "low_risk": 7},
+            "SPY": {"aiscore": 8, "fundamental": 7, "technical": 8, "sentiment": 7, "low_risk": 6},
+        }
+    }
+    session = DummySession(DummyResponse(
+        200, response_payload, text_data="{}"))
+    client = DanelfinApiClient("test-key", session=session)
+
+    result = asyncio.run(client.async_get_ranking(
+        market=MARKET_US, asset=MARKET_ETF))
+
+    # date must be present — without it the API returns HTTP 400
+    assert session.last_request is not None
+    assert "date" in session.last_request["params"], (
+        "date param missing from ETF top-ranking request — API will return 400"
+    )
+    assert "ticker" not in session.last_request["params"]
+    assert session.last_request["params"]["asset"] == MARKET_ETF
+
+    # Response contains ticker-keyed entries
+    assert "QQQ" in result
+    assert "SPY" in result
+    assert result["QQQ"]["ai_score"] == 9
+    assert result["QQQ"]["rating"] == "Strong Buy"
+
+
 # ---------------------------------------------------------------------------
 # Live tests — run only when _API_KEY is set and real aiohttp is available
 # ---------------------------------------------------------------------------
@@ -283,6 +317,32 @@ async def test_live_ranking_etf() -> None:
 
 
 @_need_api_key
+async def test_live_ranking_top_etfs() -> None:
+    """GET /ranking with asset=etf and no ticker returns a dict of ETF tickers.
+
+    This is what DanelfinRecommendationsCoordinator calls for Top ETFs.
+    Before the fix, this request lacked a required date param and got HTTP 400.
+    """
+    import asyncio as _asyncio
+    await _asyncio.sleep(3)  # avoid 429 when tests run back-to-back
+    try:
+        async with _real_aiohttp.ClientSession(timeout=_real_aiohttp.ClientTimeout(total=15)) as session:
+            client = DanelfinApiClient(_API_KEY, session=session)
+            result = await client.async_get_ranking(market=MARKET_US, asset=MARKET_ETF)
+    except DanelfinRateLimitError:
+        pytest.skip("Hit rate limit — run again in a moment")
+
+    assert isinstance(result, dict), f"Expected dict, got {type(result)}"
+    assert len(result) > 0, "Top ETF ranking returned empty result"
+    sample_ticker = next(iter(result))
+    sample_data = result[sample_ticker]
+    missing = _EXPECTED_SCORE_KEYS - sample_data.keys()
+    assert not missing, f"Missing score keys for {sample_ticker}: {missing}"
+    print(
+        f"      Top ETF ranking: {len(result)} tickers, sample={sample_ticker}: {sample_data}")
+
+
+@_need_api_key
 async def test_live_invalid_key_auth_error() -> None:
     """A clearly wrong key format should raise DanelfinAuthError (401/403).
 
@@ -308,6 +368,7 @@ def main() -> None:
         test_sectors_and_industries,
         test_error_mapping,
         test_invalid_ranking_response_raises,
+        test_ranking_top_etf_injects_date,
     ]
 
     # Live tests are async coroutines — each gets its own asyncio.run() call.
@@ -315,6 +376,7 @@ def main() -> None:
         test_live_sectors_returns_list,
         test_live_ranking_us_stock,
         test_live_ranking_etf,
+        test_live_ranking_top_etfs,
         test_live_invalid_key_auth_error,
     ]
 

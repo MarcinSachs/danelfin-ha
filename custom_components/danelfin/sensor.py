@@ -21,7 +21,6 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -34,12 +33,7 @@ from .const import (
     DOMAIN,
     RANKING_CATEGORIES,
     SENSOR_AI_SCORE,
-    SENSOR_BEAT_MARKET_PROB,
-    SENSOR_COMPANY_NAME,
     SENSOR_FUNDAMENTAL,
-    SENSOR_PRICE,
-    SENSOR_PRICE_CURRENCY,
-    SENSOR_PROB_ADVANTAGE,
     SENSOR_RATING,
     SENSOR_RISK,
     SENSOR_SENTIMENT,
@@ -109,39 +103,6 @@ SENSOR_DESCRIPTIONS: tuple[DanelfinSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.ENUM,
         options=["Strong Buy", "Buy", "Hold",
                  "Sell", "Strong Sell", "Unknown"],
-    ),
-    DanelfinSensorEntityDescription(
-        key=SENSOR_BEAT_MARKET_PROB,
-        data_key=SENSOR_BEAT_MARKET_PROB,
-        name="Probability of Beating Market",
-        icon="mdi:percent-outline",
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=PERCENTAGE,
-        suggested_display_precision=2,
-    ),
-    DanelfinSensorEntityDescription(
-        key=SENSOR_PROB_ADVANTAGE,
-        data_key=SENSOR_PROB_ADVANTAGE,
-        name="Probability Advantage",
-        icon="mdi:delta",
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=PERCENTAGE,
-        suggested_display_precision=2,
-    ),
-    DanelfinSensorEntityDescription(
-        key=SENSOR_PRICE,
-        data_key=SENSOR_PRICE,
-        name="Price",
-        icon="mdi:currency-usd",
-        state_class=SensorStateClass.MEASUREMENT,
-        entity_category=EntityCategory.DIAGNOSTIC,
-        suggested_display_precision=2,
-    ),
-    DanelfinSensorEntityDescription(
-        key=SENSOR_COMPANY_NAME,
-        data_key=SENSOR_COMPANY_NAME,
-        name="Company Name",
-        icon="mdi:office-building-outline",
     ),
 )
 
@@ -225,12 +186,6 @@ class DanelfinSensor(CoordinatorEntity[DanelfinCoordinator], SensorEntity):
         )
 
     @property
-    def native_unit_of_measurement(self) -> str | None:
-        if self.entity_description.key == SENSOR_PRICE and self.available:
-            return self.coordinator.data[self._ticker].get(SENSOR_PRICE_CURRENCY, "USD")
-        return self.entity_description.native_unit_of_measurement
-
-    @property
     def native_value(self) -> Any:
         if not self.available:
             return None
@@ -246,14 +201,6 @@ class DanelfinSensor(CoordinatorEntity[DanelfinCoordinator], SensorEntity):
         data = self.coordinator.data[self._ticker]
         attrs: dict[str, Any] = {"ticker": self._ticker}
 
-        company = data.get(SENSOR_COMPANY_NAME)
-        if company:
-            attrs["company"] = company
-
-        if self.entity_description.key == SENSOR_PRICE:
-            attrs["currency"] = data.get(
-                SENSOR_PRICE_CURRENCY, "USD")  # also visible as unit
-
         if self.entity_description.key == SENSOR_AI_SCORE:
             for key in (
                 SENSOR_FUNDAMENTAL,
@@ -261,16 +208,12 @@ class DanelfinSensor(CoordinatorEntity[DanelfinCoordinator], SensorEntity):
                 SENSOR_SENTIMENT,
                 SENSOR_RISK,
                 SENSOR_RATING,
-                SENSOR_BEAT_MARKET_PROB,
-                SENSOR_PROB_ADVANTAGE,
             ):
                 if key in data:
                     attrs[key] = data[key]
 
             if "last_updated" in data:
                 attrs["last_updated"] = data["last_updated"]
-            if "price" in data:
-                attrs["price"] = data["price"]
             if "market" in data:
                 attrs["market"] = data["market"]
 

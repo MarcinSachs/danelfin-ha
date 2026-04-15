@@ -87,13 +87,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     ticker = entry.data[CONF_TICKER]
     market = entry.data.get(CONF_MARKET, MARKET_US)
-    base_entry = _find_base_entry(hass)
+    base_entry = await _find_base_entry(hass)
     if not base_entry:
         return False
     api_key = base_entry.data.get(CONF_API_KEY)
     if not api_key:
         return False
-    scan_hours = base_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    scan_hours = base_entry.options.get(
+        CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
 
     coordinator = DanelfinCoordinator(
         hass, [ticker], scan_hours, api_key, market)

@@ -19,6 +19,7 @@
 Monitor your stocks and ETFs using Danelfin's **AI-driven scores**. This integration brings professional-grade financial analytics directly to your Home Assistant dashboard.
 
 * 🚀 **AI Smart Scores:** Track the overall AI Score (1-10) and sub-scores (Fundamental, Technical, Sentiment, Risk).
+* 📊 **Track Records:** See `Buy Track Record` and `Sell Track Record` when provided by the Danelfin API.
 * 🇪🇺 **Global Coverage:** Support for US Stocks, European Stocks (RIC format), and ETFs.
 * 🏆 **Top-5 Recommendations:** Automatically updated lists for the best investment opportunities in each market.
 * ⚡ **Efficiency:** Built on the official REST API with `DataUpdateCoordinator` to save your API quota.
@@ -62,8 +63,11 @@ The easiest way to install and stay updated.
 | Category | Sensors |
 | :--- | :--- |
 | **Main AI** | AI Score, Rating (Strong Buy / Buy / Hold / Sell / Strong Sell) |
-| **Sub-Scores** | Fundamental, Technical, Sentiment, Risk |
+| **Sub-Scores** | Fundamental Score, Technical Score, Sentiment Score, Risk Score |
+| **Track Record** | Buy Track Record, Sell Track Record |
 | **System** | API Connectivity Status |
+
+> Note: Danelfin API only returns the fields documented in the official API. If a field is not available for a specific ticker, its sensor may not be created or may appear as unavailable.
 
 ### Recommendation Lists (Top-5)
 Stay on top of the market with position-based sensors that update as the ranking changes:

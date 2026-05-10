@@ -15,12 +15,17 @@ from .const import (
     SENSOR_TECHNICAL,
     SENSOR_SENTIMENT,
     SENSOR_RISK,
+    SENSOR_BUY_TRACK_RECORD,
+    SENSOR_SELL_TRACK_RECORD,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 API_BASE_URL = "https://apirest.danelfin.com"
-DEFAULT_FIELDS = "aiscore,fundamental,technical,sentiment,low_risk"
+DEFAULT_FIELDS = (
+    "aiscore,fundamental,technical,sentiment,low_risk,"
+    "buy_track_record,sell_track_record"
+)
 
 FIELD_TO_SENSOR_MAP: dict[str, str] = {
     "aiscore": SENSOR_AI_SCORE,
@@ -28,6 +33,8 @@ FIELD_TO_SENSOR_MAP: dict[str, str] = {
     "technical": SENSOR_TECHNICAL,
     "sentiment": SENSOR_SENTIMENT,
     "low_risk": SENSOR_RISK,
+    "buy_track_record": SENSOR_BUY_TRACK_RECORD,
+    "sell_track_record": SENSOR_SELL_TRACK_RECORD,
 }
 
 
@@ -239,11 +246,31 @@ class DanelfinApiClient:
     def _normalize_score_entry(self, raw_entry: dict[str, Any]) -> dict[str, Any]:
         normalized: dict[str, Any] = {}
         for source_field, sensor_key in FIELD_TO_SENSOR_MAP.items():
-            if source_field in raw_entry:
+            if source_field not in raw_entry:
+                continue
+            value = raw_entry[source_field]
+            if sensor_key in {
+                SENSOR_AI_SCORE,
+                SENSOR_FUNDAMENTAL,
+                SENSOR_TECHNICAL,
+                SENSOR_SENTIMENT,
+                SENSOR_RISK,
+            }:
                 try:
-                    normalized[sensor_key] = int(raw_entry[source_field])
+                    normalized[sensor_key] = int(value)
                 except (TypeError, ValueError):
                     normalized[sensor_key] = None
+            elif sensor_key in {
+                SENSOR_BUY_TRACK_RECORD,
+                SENSOR_SELL_TRACK_RECORD,
+            }:
+                if isinstance(value, str):
+                    normalized[sensor_key] = value.lower() in (
+                        "yes", "true", "1")
+                else:
+                    normalized[sensor_key] = bool(value)
+            else:
+                normalized[sensor_key] = value
 
         normalized["rating"] = self._derive_rating(
             normalized.get(SENSOR_AI_SCORE))

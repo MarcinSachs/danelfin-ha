@@ -87,7 +87,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     ticker = entry.data[CONF_TICKER]
     market = entry.data.get(CONF_MARKET, MARKET_US)
-    base_entry = await _find_base_entry(hass)
+    base_entry = _find_base_entry(hass)
     if not base_entry:
         return False
     api_key = base_entry.data.get(CONF_API_KEY)
@@ -105,7 +105,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-async def _find_base_entry(hass: HomeAssistant) -> ConfigEntry | None:
+def _find_base_entry(hass: HomeAssistant) -> ConfigEntry | None:
     """Return the base config entry that contains global settings."""
     for entry in hass.config_entries.async_entries(DOMAIN):
         if entry.data.get("is_base"):

@@ -38,7 +38,7 @@ RANKING_CATEGORIES: dict[str, dict] = {
         "market": MARKET_US,
         "asset": None,
         "label": "Top US Stocks",
- "sensor_prefix": "top_us",
+        "sensor_prefix": "top_us",
     },
     CONF_REC_ETF: {
         "market": MARKET_US,
@@ -61,9 +61,6 @@ SENSOR_FUNDAMENTAL = "fundamental_score"
 SENSOR_TECHNICAL = "technical_score"
 SENSOR_SENTIMENT = "sentiment_score"
 SENSOR_RISK = "risk_score"
+SENSOR_BUY_TRACK_RECORD = "buy_track_record"
+SENSOR_SELL_TRACK_RECORD = "sell_track_record"
 SENSOR_RATING = "rating"
-SENSOR_BEAT_MARKET_PROB = "beat_market_probability"
-SENSOR_PROB_ADVANTAGE = "probability_advantage"
-SENSOR_PRICE = "price"
-SENSOR_PRICE_CURRENCY = "price_currency"
-SENSOR_COMPANY_NAME = "company_name"

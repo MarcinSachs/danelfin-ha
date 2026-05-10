@@ -34,6 +34,8 @@ from .const import (
     RANKING_CATEGORIES,
     SENSOR_AI_SCORE,
     SENSOR_FUNDAMENTAL,
+    SENSOR_BUY_TRACK_RECORD,
+    SENSOR_SELL_TRACK_RECORD,
     SENSOR_RATING,
     SENSOR_RISK,
     SENSOR_SENTIMENT,
@@ -96,6 +98,18 @@ SENSOR_DESCRIPTIONS: tuple[DanelfinSensorEntityDescription, ...] = (
         suggested_display_precision=0,
     ),
     DanelfinSensorEntityDescription(
+        key=SENSOR_BUY_TRACK_RECORD,
+        data_key=SENSOR_BUY_TRACK_RECORD,
+        name="Buy Track Record",
+        icon="mdi:thumb-up-outline",
+    ),
+    DanelfinSensorEntityDescription(
+        key=SENSOR_SELL_TRACK_RECORD,
+        data_key=SENSOR_SELL_TRACK_RECORD,
+        name="Sell Track Record",
+        icon="mdi:thumb-down-outline",
+    ),
+    DanelfinSensorEntityDescription(
         key=SENSOR_RATING,
         data_key=SENSOR_RATING,
         name="Rating",
@@ -141,11 +155,33 @@ async def async_setup_entry(
         return
 
     # Ticker coordinator
-    async_add_entities(
-        DanelfinSensor(entry_coordinator, ticker, description)
-        for ticker in entry_coordinator.tickers
-        for description in SENSOR_DESCRIPTIONS
-    )
+    entities = []
+    for ticker in entry_coordinator.tickers:
+        ticker_data = entry_coordinator.data.get(
+            ticker, {}) if entry_coordinator.data else {}
+        for description in SENSOR_DESCRIPTIONS:
+            if not _should_create_sensor(ticker_data, description):
+                continue
+            entities.append(DanelfinSensor(
+                entry_coordinator, ticker, description))
+
+    async_add_entities(entities)
+
+
+def _should_create_sensor(
+    ticker_data: dict[str, Any],
+    description: DanelfinSensorEntityDescription,
+) -> bool:
+    if description.data_key not in ticker_data:
+        return False
+    value = ticker_data[description.data_key]
+    if value is None:
+        return False
+
+    if description.data_key == SENSOR_RATING:
+        return ticker_data.get(SENSOR_AI_SCORE) is not None
+
+    return True
 
 
 class DanelfinSensor(CoordinatorEntity[DanelfinCoordinator], SensorEntity):

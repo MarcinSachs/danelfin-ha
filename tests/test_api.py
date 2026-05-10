@@ -129,6 +129,8 @@ def test_ranking_ticker_response() -> None:
             "technical": 10,
             "sentiment": 10,
             "low_risk": 8,
+            "buy_track_record": "yes",
+            "sell_track_record": "no",
         },
         "2026-04-10": {
             "aiscore": 8,
@@ -151,6 +153,8 @@ def test_ranking_ticker_response() -> None:
             "technical_score": 10,
             "sentiment_score": 10,
             "risk_score": 8,
+            "buy_track_record": True,
+            "sell_track_record": False,
             "rating": "Strong Buy",
         }
     }
